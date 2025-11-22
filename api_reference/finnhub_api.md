@@ -13,9 +13,7 @@ https://github.com/Finnhub-Stock-API/finnhub-python
 **Output:**
 
 ```json
-[
   {"period": "1995-09-30", "v": 1.6259},
   {"period": "1995-06-30", "v": 1.6548},
   {"period": "1995-03-31", "v": 1.6394},
-]
 ...
