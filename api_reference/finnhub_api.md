@@ -2,8 +2,8 @@
 
 Here are the functions available under the free-tier API for finnhub. Each section includes the function name and a sample output.
 
-More info can be found here:
-https://finnhub.io/pricing
+More info can be found here:  
+https://finnhub.io/pricing  
 https://github.com/Finnhub-Stock-API/finnhub-python
 
 ---
