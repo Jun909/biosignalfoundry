@@ -4,6 +4,8 @@ Here are the functions available under the free-tier API for finnhub. Each secti
 
 More info can be found here:  
 https://finnhub.io/pricing  
+---
+For initialization, please refer:  
 https://github.com/Finnhub-Stock-API/finnhub-python
 
 ---
