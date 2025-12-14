@@ -1,6 +1,6 @@
 # ALPHAVINTAGE
 
-Here are the functions available under the free-tier API for AlphaVintage. Each section lists the function name and a sample output (truncated for brevity).
+Here are the functions available under the free-tier API for AlphaVintage. Each section lists the function name and a sample raw output (truncated for brevity).
 
 More info: https://www.alphavantage.co/documentation/#intelligence
 

@@ -1,6 +1,6 @@
 # MASSIVE
 
-Here are the functions available under the free-tier API for Massive. Each section lists the function name and a sample output (truncated for brevity).
+Here are the functions available under the free-tier API for Massive. Each section lists the function name and a sample raw output (truncated for brevity).
 
 More info: https://massive.com/dashboard/subscriptions?assetClass=stocks&license=personal
 
