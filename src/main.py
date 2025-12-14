@@ -27,10 +27,9 @@ series = "SP500"
 # print(functions)
 
 
-# '', '', 'get_series_latest_release', 'get_series_vintage_dates', 
-# 'latest_realtime_end', 'max_results_per_request', 'nan_char', 'proxies', 'root_url', 'search', 
+# '', 'max_results_per_request', 'nan_char', 'proxies', 'root_url', 'search', 
 # 'search_by_category', 'search_by_release']
 
-print(fred.get_series_latest_release(series_id=series))
+print(fred.nan_char(series_id="CPIAUCSL"))
 
 
