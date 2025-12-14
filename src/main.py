@@ -6,12 +6,15 @@
 # from alpha_vantage.alphavantage import AlphaVantage
 # from alpha_vantage.fundamentaldata import FundamentalData
 
-
 from fredapi import Fred
 from dotenv import load_dotenv
 from os import getenv
+import requests
 load_dotenv()
+key = getenv("MARKETSTACK_API_KEY")
+test = requests.get(f"http://api.marketstack.com/v2/eod?access_key={key}&symbols=AAPL")
 
+print(test.json())
 # ts = TimeSeries(key=getenv("ALPHAVANTAGE_API_KEY"))
 # ti = TechIndicators(key=getenv("ALPHAVANTAGE_API_KEY"))
 # ai = AlphaIntelligence(key=getenv("ALPHAVANTAGE_API_KEY"))
@@ -19,17 +22,13 @@ load_dotenv()
 # fd = FundamentalData(key=getenv("ALPHAVANTAGE_API_KEY"))
 
 
-fred = Fred(api_key=getenv("FRED_API_KEY"))
+# fred = Fred(api_key=getenv("FRED_API_KEY"))
 ticker = "AAPL"
 series = "SP500"
 
 # functions = [func for func in dir(fred) if not func.startswith('_')]
 # print(functions)
 
-
-# '', 'max_results_per_request', 'nan_char', 'proxies', 'root_url', 'search', 
-# 'search_by_category', 'search_by_release']
-
-print(fred.nan_char(series_id="CPIAUCSL"))
+# print(fred.nan_char(series_id="CPIAUCSL"))
 
 
