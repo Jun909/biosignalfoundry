@@ -1,8 +1,7 @@
 from .massive import MassiveAPIClient
-
-# from .finnhub import FinnhubClient
+from .finnhub import FinnHubAPIClient
 
 __all__ = [
     "MassiveAPIClient",
-    # "FinnhubClient",
+    "FinnHubAPIClient",
 ]
