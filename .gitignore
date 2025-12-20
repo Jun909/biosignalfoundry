@@ -1,2 +1,5 @@
 .venv
 .env
+.vscode
+randomtest.py
+__pycache__/
