@@ -3,6 +3,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 from massive import RESTClient
+
 from .base import BaseClient
 
 
@@ -13,7 +14,8 @@ class MassiveAPIClient(BaseClient):
     """
 
     def __init__(self, api_key: str):
-        self.api_key = RESTClient(api_key=api_key)
+        self.client = RESTClient(api_key=api_key)
+        self.provider = "massive"
 
     def get_aggs(
         self,
@@ -30,7 +32,8 @@ class MassiveAPIClient(BaseClient):
         AggsClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "get_aggs",
             ticker=ticker,
             multiplier=multiplier,
@@ -52,7 +55,8 @@ class MassiveAPIClient(BaseClient):
         AggsClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "get_daily_open_close_agg",
             ticker=ticker,
             date=date,
@@ -63,28 +67,42 @@ class MassiveAPIClient(BaseClient):
         """
         IndicatorsClient
         """
-        return self._call(self.api_key, "get_ema", ticker=ticker, *args, **kwargs)
+        return self._call(
+            self.client, self.provider, "get_ema", ticker=ticker, *args, **kwargs
+        )
 
     def get_exchanges(self, asset_class: str | None, *args, **kwargs) -> dict:
         """
         ExchangesClient
         """
         return self._call(
-            self.api_key, "get_exchanges", asset_class=asset_class, *args, **kwargs
+            self.client,
+            self.provider,
+            "get_exchanges",
+            asset_class=asset_class,
+            *args,
+            **kwargs,
         )
 
     def get_macd(self, ticker: str, *args, **kwargs) -> dict:
         """
         IndicatorsClient
         """
-        return self._call(self.api_key, "get_macd", ticker=ticker, *args, **kwargs)
+        return self._call(
+            self.client, self.provider, "get_macd", ticker=ticker, *args, **kwargs
+        )
 
     def get_market_holidays(self, params: dict | None = None, *args, **kwargs) -> dict:
         """
         MarketsClient
         """
         return self._call(
-            self.api_key, "get_market_holidays", params=params, *args, **kwargs
+            self.client,
+            self.provider,
+            "get_market_holidays",
+            params=params,
+            *args,
+            **kwargs,
         )
 
     def get_market_status(self, params: dict | None = None, *args, **kwargs) -> dict:
@@ -92,51 +110,73 @@ class MassiveAPIClient(BaseClient):
         MarketsClient
         """
         return self._call(
-            self.api_key, "get_market_status", params=params, *args, **kwargs
+            self.client,
+            self.provider,
+            "get_market_status",
+            params=params,
+            *args,
+            **kwargs,
         )
 
     def get_previous_close_agg(self, ticker: str) -> dict:
         """
         AggsClient
         """
-        return self._call(self.api_key, "get_previous_close_agg", ticker=ticker)
+        return self._call(
+            self.client, self.provider, "get_previous_close_agg", ticker=ticker
+        )
 
     def get_related_companies(self, ticker: str) -> dict:
         """
         TickersClient
         """
-        return self._call(self.api_key, "get_related_companies", ticker=ticker)
+        return self._call(
+            self.client, self.provider, "get_related_companies", ticker=ticker
+        )
 
     def get_rsi(self, ticker: str, *args, **kwargs) -> dict:
         """
         IndicatorsClient
         """
-        return self._call(self.api_key, "get_rsi", ticker=ticker, *args, **kwargs)
+        return self._call(
+            self.client, self.provider, "get_rsi", ticker=ticker, *args, **kwargs
+        )
 
     def get_sma(self, ticker: str, *args, **kwargs) -> dict:
         """
         IndicatorsClient
         """
-        return self._call(self.api_key, "get_sma", ticker=ticker, *args, **kwargs)
+        return self._call(
+            self.client, self.provider, "get_sma", ticker=ticker, *args, **kwargs
+        )
 
     def get_ticker_details(self, ticker: str, date: str | date | None = None) -> dict:
         """
         TickersClient
         """
-        return self._call(self.api_key, "get_ticker_details", ticker=ticker, date=date)
+        return self._call(
+            self.client, self.provider, "get_ticker_details", ticker=ticker, date=date
+        )
 
     def get_ticker_events(self, ticker: str, type: str | None = None) -> dict:
         """
         TickersClient
         """
-        return self._call(self.api_key, "get_ticker_events", ticker=ticker, type=type)
+        return self._call(
+            self.client, self.provider, "get_ticker_events", ticker=ticker, type=type
+        )
 
     def get_ticker_types(self, asset_class: str | None = None, *args, **kwargs) -> dict:
         """
         TickersClient
         """
         return self._call(
-            self.api_key, "get_ticker_types", asset_class=asset_class, *args, **kwargs
+            self.client,
+            self.provider,
+            "get_ticker_types",
+            asset_class=asset_class,
+            *args,
+            **kwargs,
         )
 
     def list_aggs(
@@ -154,7 +194,8 @@ class MassiveAPIClient(BaseClient):
         AggsClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "list_aggs",
             ticker=ticker,
             multiplier=multiplier,
@@ -171,7 +212,12 @@ class MassiveAPIClient(BaseClient):
         ConditionsClient
         """
         return self._call(
-            self.api_key, "list_conditions", asset_class=asset_class, *args, **kwargs
+            self.client,
+            self.provider,
+            "list_conditions",
+            asset_class=asset_class,
+            *args,
+            **kwargs,
         )
 
     def list_dividends(self, ticker: str, *args, **kwargs) -> dict:
@@ -179,7 +225,7 @@ class MassiveAPIClient(BaseClient):
         DividendsCLient
         """
         return self._call(
-            self.api_key, "list_dividends", ticker=ticker, *args, **kwargs
+            self.client, self.provider, "list_dividends", ticker=ticker, *args, **kwargs
         )
 
     def list_inflation(
@@ -189,7 +235,13 @@ class MassiveAPIClient(BaseClient):
         EconomyClient
         """
         return self._call(
-            self.api_key, "list_inflation", date=date, limit=limit, *args, **kwargs
+            self.client,
+            self.provider,
+            "list_inflation",
+            date=date,
+            limit=limit,
+            *args,
+            **kwargs,
         )
 
     def list_options_contracts(
@@ -199,7 +251,8 @@ class MassiveAPIClient(BaseClient):
         ContractsClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "list_options_contracts",
             underlying_ticker=underlying_ticker,
             *args,
@@ -213,7 +266,8 @@ class MassiveAPIClient(BaseClient):
         ContractsClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "list_short_interest",
             ticker=ticker,
             limit=limit,
@@ -228,7 +282,13 @@ class MassiveAPIClient(BaseClient):
         ContractsClient
         """
         return self._call(
-            self.api_key, "list_short_volume", ticker=ticker, date=date, *args, **kwargs
+            self.client,
+            self.provider,
+            "list_short_volume",
+            ticker=ticker,
+            date=date,
+            *args,
+            **kwargs,
         )
 
     def list_splits(
@@ -238,7 +298,13 @@ class MassiveAPIClient(BaseClient):
         SplitsClient
         """
         return self._call(
-            self.api_key, "list_splits", ticker=ticker, limit=limit, *args, **kwargs
+            self.client,
+            self.provider,
+            "list_splits",
+            ticker=ticker,
+            limit=limit,
+            *args,
+            **kwargs,
         )
 
     def list_ticker_news(
@@ -248,7 +314,8 @@ class MassiveAPIClient(BaseClient):
         TickersClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "list_ticker_news",
             ticker=ticker,
             limit=limit,
@@ -268,7 +335,8 @@ class MassiveAPIClient(BaseClient):
         TickersClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "list_tickers",
             ticker=ticker,
             date=date,
@@ -284,7 +352,8 @@ class MassiveAPIClient(BaseClient):
         EconomyClient
         """
         return self._call(
-            self.api_key,
+            self.client,
+            self.provider,
             "list_treasury_yields",
             date=date,
             limit=limit,

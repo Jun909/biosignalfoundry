@@ -50,7 +50,7 @@ Sample output (pandas dataframe):
 
 ## `get_series_as_of_date("GDP")`
 
-Sample output (pnadas dataframe):
+Sample output (pandas dataframe):
 
 ```json
            realtime_start                 date      value

@@ -31,10 +31,14 @@ class BaseClient:
         return obj
 
     def _make_response(
-        self, endpoint: str, result: Any, extra: Optional[Dict[str, Any]] = None
+        self,
+        provider: str,
+        endpoint: str,
+        result: Any,
+        extra: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         payload = {
-            "provider": "massive",
+            "provider": provider,
             "endpoint": endpoint,
             "fetched_at": datetime.now().isoformat(sep=" "),
             "data": self._serialize(result),
@@ -43,20 +47,24 @@ class BaseClient:
             payload.update(extra)
         return payload
 
-    def _call(self, api_key: Any, endpoint: str, *args, **kwargs) -> Dict[str, Any]:
+    def _call(
+        self, client: Any, provider: str, endpoint: str, *args, **kwargs
+    ) -> Dict[str, Any]:
         try:
-            func = getattr(api_key, endpoint)
+            func = getattr(client, endpoint)
             result = func(*args, **kwargs)
             extra = {}
             if "ticker" in kwargs:
                 extra["ticker"] = kwargs.get("ticker")
+            elif "symbol" in kwargs:
+                extra["ticker"] = kwargs.get("symbol")
             elif args and isinstance(args[0], str):
                 extra["ticker"] = args[0]
-            return self._make_response(endpoint, result, extra=extra)
+            return self._make_response(provider, endpoint, result, extra=extra)
 
         except Exception as e:
             resp = {
-                "provider": "massive",
+                "provider": provider,
                 "endpoint": endpoint,
                 "fetched_at": datetime.now().isoformat(sep=" "),
                 "data": [],
