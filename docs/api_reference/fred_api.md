@@ -7,7 +7,7 @@ More info: https://fred.stlouisfed.org/docs/api/api_key.html
 For initialization, check: https://pypi.org/project/fredapi/
 
 ---
-## `get_series("AAPL")`
+## `get_series()`
 
 Sample output (pandas):
 
