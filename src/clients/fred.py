@@ -1,6 +1,4 @@
-from collections.abc import Iterable
-from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from datetime import date, datetime
 
 from fredapi import Fred
 
@@ -33,8 +31,13 @@ class FredAPIClient(BaseClient):
             observation_start=observation_start,
             observation_end=observation_end,
         )
-    
-    def get_series_all_releases(self, series_id: str, realtime_start: str | date | datetime | None = None, realtime_end: str | date | datetime | None = None):
+
+    def get_series_all_releases(
+        self,
+        series_id: str,
+        realtime_start: str | date | datetime | None = None,
+        realtime_end: str | date | datetime | None = None,
+    ):
         return self._call(
             self.client,
             self.provider,
@@ -43,7 +46,7 @@ class FredAPIClient(BaseClient):
             realtime_start=realtime_start,
             realtime_end=realtime_end,
         )
-    
+
     def get_series_as_of_date(self, series_id: str, as_of_date: str | date | datetime):
         return self._call(
             self.client,
@@ -52,7 +55,7 @@ class FredAPIClient(BaseClient):
             series_id=series_id,
             as_of_date=as_of_date,
         )
-    
+
     def get_series_first_release(self, series_id: str):
         return self._call(
             self.client,
@@ -60,7 +63,7 @@ class FredAPIClient(BaseClient):
             "get_series_first_release",
             series_id=series_id,
         )
-    
+
     def get_series_info(self, series_id: str):
         return self._call(
             self.client,
@@ -68,7 +71,7 @@ class FredAPIClient(BaseClient):
             "get_series_info",
             series_id=series_id,
         )
-    
+
     def get_series_latest_release(self, series_id: str):
         return self._call(
             self.client,
@@ -76,6 +79,7 @@ class FredAPIClient(BaseClient):
             "get_series_latest_release",
             series_id=series_id,
         )
+
     def get_series_vintage_dates(self, series_id: str):
         return self._call(
             self.client,
