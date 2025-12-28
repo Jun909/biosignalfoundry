@@ -125,8 +125,10 @@ class AlphaVintageAPIClient(BaseClient):
             month=month,
             entitlement=entitlement,
         )
-    
-    def get_adosc(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+
+    def get_adosc(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -142,7 +144,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_adx(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_adx(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -157,8 +161,10 @@ class AlphaVintageAPIClient(BaseClient):
             interval=interval,
             entitlement=entitlement,
         )
-    
-    def get_adxr(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+
+    def get_adxr(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -174,7 +180,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_apo(self, ticker: str, interval: str = "daily", series_type: str = "close", entitlement: str | None = None):
+    def get_apo(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -192,7 +204,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_aroon(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_aroon(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -210,7 +228,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_aroonosc(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_aroonosc(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -228,7 +252,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_atr(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_atr(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -246,7 +276,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_bbands(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_bbands(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -266,7 +303,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_cci(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_cci(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -284,7 +327,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_cmo(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_cmo(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -304,7 +354,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_dema(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_dema(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -323,8 +380,14 @@ class AlphaVintageAPIClient(BaseClient):
             series_type=series_type,
             entitlement=entitlement,
         )
-    
-    def get_dx(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+
+    def get_dx(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -342,7 +405,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ema(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_ema(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -362,7 +432,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ht_dcperiod(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_ht_dcperiod(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -378,7 +450,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ht_dcphase(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_ht_dcphase(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -394,7 +468,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ht_phasor(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_ht_phasor(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -410,7 +486,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ht_sine(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_ht_sine(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -426,7 +504,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ht_trendline(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_ht_trendline(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -442,7 +522,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ht_trendmode(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_ht_trendmode(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -458,7 +540,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_kama(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_kama(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -476,7 +564,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_macdext(self, ticker: str, interval: str = "daily", series_type: str = "close", entitlement: str | None = None):
+    def get_macdext(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -494,7 +588,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_mama(self, ticker: str, interval: str = "daily", series_type: str = "close", entitlement: str | None = None):
+    def get_mama(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -511,9 +611,14 @@ class AlphaVintageAPIClient(BaseClient):
             series_type=series_type,
             entitlement=entitlement,
         )
-    
 
-    def get_mfi(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_mfi(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -531,7 +636,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_midpoint(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_midpoint(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -551,7 +663,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_midprice(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_midprice(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -569,7 +687,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_minus_di(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_minus_di(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -587,7 +711,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_minus_dm(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_minus_dm(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -605,7 +735,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_mom(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_mom(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -625,7 +762,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_natr(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_natr(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -643,7 +786,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_obv(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_obv(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -659,7 +804,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_plus_di(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_plus_di(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -677,7 +828,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_plus_dm(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_plus_dm(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -695,7 +852,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ppo(self, ticker: str, interval: str = "daily", series_type: str = "close", entitlement: str | None = None):
+    def get_ppo(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -713,7 +876,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_roc(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_roc(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -733,7 +903,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_rocr(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_rocr(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -753,7 +930,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_rsi(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_rsi(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -773,7 +957,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_sar(self, ticker: str, interval: str = "daily", acceleration: float | None = None, maximum: float | None = None, entitlement: str | None = None):
+    def get_sar(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        acceleration: float | None = None,
+        maximum: float | None = None,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -793,7 +984,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_sma(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_sma(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -813,7 +1011,15 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_stoch(self, ticker: str, interval: str = "daily", fastkperiod: int | None = None, slowkperiod: int | None = None, slowdperiod: int | None = None, entitlement: str | None = None):
+    def get_stoch(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        fastkperiod: int | None = None,
+        slowkperiod: int | None = None,
+        slowdperiod: int | None = None,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -835,7 +1041,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_stochf(self, ticker: str, interval: str = "daily", fastkperiod: int | None = None, fastdperiod: int | None = None, entitlement: str | None = None):
+    def get_stochf(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        fastkperiod: int | None = None,
+        fastdperiod: int | None = None,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -855,7 +1068,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_stochrsi(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_stochrsi(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -875,7 +1095,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_t3(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_t3(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -895,7 +1122,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_tema(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_tema(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -915,7 +1149,9 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_trange(self, ticker: str, interval: str = "daily", entitlement: str | None = None):
+    def get_trange(
+        self, ticker: str, interval: str = "daily", entitlement: str | None = None
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -931,7 +1167,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_trima(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_trima(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -951,7 +1194,14 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_trix(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+    def get_trix(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -971,7 +1221,15 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_ultosc(self, ticker: str, interval: str = "daily", timeperiod1: int | None = None, timeperiod2: int | None = None, timeperiod3: int | None = None, entitlement: str | None = None):
+    def get_ultosc(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        timeperiod1: int | None = None,
+        timeperiod2: int | None = None,
+        timeperiod3: int | None = None,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -993,7 +1251,13 @@ class AlphaVintageAPIClient(BaseClient):
             entitlement=entitlement,
         )
 
-    def get_willr(self, ticker: str, interval: str = "daily", time_period: int = 20, entitlement: str | None = None):
+    def get_willr(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -1010,8 +1274,15 @@ class AlphaVintageAPIClient(BaseClient):
             time_period=time_period,
             entitlement=entitlement,
         )
-    
-    def get_wma(self, ticker: str, interval: str = "daily", time_period: int = 20, series_type: str = "close", entitlement: str | None = None):
+
+    def get_wma(
+        self,
+        ticker: str,
+        interval: str = "daily",
+        time_period: int = 20,
+        series_type: str = "close",
+        entitlement: str | None = None,
+    ):
         """
         Args:
             ticker (str): The stock ticker symbol.
@@ -1030,21 +1301,21 @@ class AlphaVintageAPIClient(BaseClient):
             series_type=series_type,
             entitlement=entitlement,
         )
-    
+
     def get_most_active(self):
         return self._call(
             self.client_alpha_intelligence,
             self.provider,
             "get_most_active",
         )
-    
+
     def get_top_gainers(self):
         return self._call(
             self.client_alpha_intelligence,
             self.provider,
             "get_top_gainers",
         )
-    
+
     def get_top_losers(self):
         return self._call(
             self.client_alpha_intelligence,
@@ -1052,7 +1323,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_top_losers",
         )
 
-    def get_cpi(self, interval:str = "monthly"):
+    def get_cpi(self, interval: str = "monthly"):
         """
         Args:
             interval (str): Supported values are 'monthly' and 'semiannual'
@@ -1063,15 +1334,15 @@ class AlphaVintageAPIClient(BaseClient):
             "get_cpi",
             interval=interval,
         )
-    
+
     def get_durables(self):
         return self._call(
             self.client_econ_indicators,
             self.provider,
             "get_durables",
         )
-    
-    def get_ffr(self, interval:str = "monthly"):
+
+    def get_ffr(self, interval: str = "monthly"):
         """
         Args:
             interval (str): Supported values are 'daily', 'weekly', and 'monthly'
@@ -1082,7 +1353,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_ffr",
             interval=interval,
         )
-    
+
     def get_inflation(self):
         return self._call(
             self.client_econ_indicators,
@@ -1096,8 +1367,8 @@ class AlphaVintageAPIClient(BaseClient):
             self.provider,
             "get_nonfarm",
         )
-    
-    def get_real_gdp(self, interval:str = "annual"):
+
+    def get_real_gdp(self, interval: str = "annual"):
         """
         Args:
             interval (str): Supported values are 'annual' and 'quarterly'
@@ -1108,22 +1379,22 @@ class AlphaVintageAPIClient(BaseClient):
             "get_real_gdp",
             interval=interval,
         )
-    
+
     def get_real_gdp_per_capita(self):
         return self._call(
             self.client_econ_indicators,
             self.provider,
             "get_real_gdp_per_capita",
         )
-    
+
     def get_retail_sales(self):
         return self._call(
             self.client_econ_indicators,
             self.provider,
             "get_retail_sales",
         )
-    
-    def get_treasury_yield(self, interval:str = "daily", maturity:str = "10year"):
+
+    def get_treasury_yield(self, interval: str = "daily", maturity: str = "10year"):
         """
         Args:
             interval (str): Supported values are 'daily', 'weekly', and 'monthly'
@@ -1136,7 +1407,7 @@ class AlphaVintageAPIClient(BaseClient):
             interval=interval,
             maturity=maturity,
         )
-    
+
     def get_unemployment(self):
         return self._call(
             self.client_econ_indicators,
@@ -1151,7 +1422,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_balance_sheet_annual",
             symbol=ticker,
         )
-    
+
     def get_balance_sheet_quarterly(self, ticker: str):
         return self._call(
             self.client_fundamental_data,
@@ -1167,7 +1438,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_cash_flow_annual",
             symbol=ticker,
         )
-    
+
     def get_cash_flow_quarterly(self, ticker: str):
         return self._call(
             self.client_fundamental_data,
@@ -1175,7 +1446,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_cash_flow_quarterly",
             symbol=ticker,
         )
-    
+
     def get_company_overview(self, ticker: str):
         return self._call(
             self.client_fundamental_data,
@@ -1183,7 +1454,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_company_overview",
             symbol=ticker,
         )
-    
+
     def get_dividends(self, ticker: str):
         return self._call(
             self.client_fundamental_data,
@@ -1191,7 +1462,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_dividends",
             symbol=ticker,
         )
-    
+
     def get_earnings_annual(self, ticker: str):
         return self._call(
             self.client_fundamental_data,
@@ -1199,7 +1470,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_earnings_annual",
             symbol=ticker,
         )
-    
+
     def get_earnings_quarterly(self, ticker: str):
         return self._call(
             self.client_fundamental_data,
@@ -1207,7 +1478,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_earnings_quarterly",
             symbol=ticker,
         )
-    
+
     def get_income_statement_annual(self, ticker: str):
         return self._call(
             self.client_fundamental_data,
@@ -1215,7 +1486,7 @@ class AlphaVintageAPIClient(BaseClient):
             "get_income_statement_annual",
             symbol=ticker,
         )
-    
+
     def get_splits(self, ticker: str):
         return self._call(
             self.client_fundamental_data,

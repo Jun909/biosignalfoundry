@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from typing import Any, Dict, Optional
+import requests
 
 import pandas as pd
 
@@ -8,6 +9,7 @@ class BaseClient:
     """
     Base client class providing common serialization and response formatting
     methods for API clients.
+    TODO: Add rate limiting and caching mechanisms.
     """
 
     def _serialize(self, obj: Any) -> Any:
