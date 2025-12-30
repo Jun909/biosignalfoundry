@@ -1,9 +1,10 @@
 import json
-import requests
-from datetime import date, datetime, timezone
-from redis import Redis
 import os
+from datetime import date, datetime, timezone
 from typing import Any
+
+import requests
+from redis import Redis
 
 redis_client = Redis(
     host="localhost",
@@ -261,7 +262,7 @@ class MarketStackAPIClient:
 
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
             return self._wrap_response(data, ticker, endpoint)
-    
+
     def dividends_data_specific_ticker(
         self, ticker: str, date_from: str | None = None, date_to: str | None = None
     ):
@@ -289,7 +290,7 @@ class MarketStackAPIClient:
 
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
             return self._wrap_response(data, ticker, endpoint)
-        
+
     def eod_specific_ticker_specific_date(self, ticker: str, date: str):
         endpoint = "eod_specific_ticker_specific_date"
 
@@ -310,7 +311,7 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, ticker, endpoint)
-    
+
     def eod_latest_data_specific_ticker(self, ticker: str):
         endpoint = "eod_latest_data_specific_ticker"
 
@@ -331,7 +332,7 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, ticker, endpoint)
-        
+
     def tickers_list(self):
         endpoint = "tickers_list"
 
@@ -373,7 +374,7 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, "", endpoint)
-    
+
     def specific_stock_exchange_info(self, mic: str):
         """
         Args:
@@ -398,7 +399,7 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, "", endpoint)
-    
+
     def specific_stock_exchange_ticker(self, mic: str):
         """
         Args:
@@ -423,9 +424,13 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, "", endpoint)
-        
+
     def eod_data_specific_stock_exchange(
-        self, mic: str, ticker: str, date_from: str | None = None, date_to: str | None = None
+        self,
+        mic: str,
+        ticker: str,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ):
         """
         Args:
@@ -461,10 +466,8 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, "", endpoint)
-        
-    def eod_data_latest_date_specific_stock_exchange(
-        self, mic: str, ticker: str
-    ):
+
+    def eod_data_latest_date_specific_stock_exchange(self, mic: str, ticker: str):
         """
         Args:
             mic (str): Market Identifier Code of the exchange (e,g., 'XNAS')
@@ -472,7 +475,9 @@ class MarketStackAPIClient:
         """
         endpoint = "eod_data_latest_date_specific_stock_exchange"
 
-        cache_key = f"marketstack:eod_data_latest_date_specific_stock_exchange:{mic}:{ticker}"
+        cache_key = (
+            f"marketstack:eod_data_latest_date_specific_stock_exchange:{mic}:{ticker}"
+        )
         cached_data = redis_client.get(cache_key)
 
         if cached_data:
@@ -490,7 +495,7 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, "", endpoint)
-    
+
     def eod_data_specific_stock_exchange_specific_date(
         self, mic: str, ticker: str, date: str
     ):
@@ -520,7 +525,7 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, "", endpoint)
-    
+
     def currencies(self):
         endpoint = "currencies"
 
@@ -541,7 +546,7 @@ class MarketStackAPIClient:
             redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
 
             return self._wrap_response(data, "", endpoint)
-        
+
     def timezones(self):
         endpoint = "timezones"
 
@@ -549,6 +554,7 @@ class MarketStackAPIClient:
         cached_data = redis_client.get(cache_key)
 
         if cached_data:
+            print(cached_data)
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
         else:
             params = {

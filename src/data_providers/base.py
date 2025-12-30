@@ -1,8 +1,8 @@
 from datetime import date, datetime, timezone
 from typing import Any, Dict, Optional
-import requests
 
 import pandas as pd
+import requests
 
 
 class BaseClient:
