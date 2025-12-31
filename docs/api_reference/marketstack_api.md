@@ -175,7 +175,6 @@ Sample output (JSON; truncated):
   ]
 }
 
-
 ```
 ## `dividends_data`
 
@@ -210,7 +209,6 @@ Sample output (JSON; truncated):
     },
   ]
 }
-
 
 ```
 ## `ticker_information`
@@ -261,7 +259,6 @@ Sample output (JSON; truncated):
     "comments": ""
   }
 }
-
 
 ```
 ## `eod_data_specific_ticker`
@@ -372,7 +369,6 @@ Sample output (JSON; truncated):
   ]
 }
 
-
 ```
 ## `eod_specific_ticker_specific_date`
 
@@ -400,7 +396,6 @@ Sample output (JSON; truncated):
   "exchange": "XNAS",
   "date": "2025-12-03T00:00:00+0000"
 }
-
 
 ```
 ## `eod_latest_data_specific_ticker`
@@ -697,7 +692,6 @@ Sample output (JSON; truncated):
   }
 }
 
-
 ```
 ## `eod_data_specific_stock_exchange_specific_date`
 
@@ -754,7 +748,6 @@ Sample output (JSON; truncated):
     ]
   }
 }
-
 
 ```
 ## `currencies`
@@ -834,6 +827,5 @@ Sample output (JSON; truncated):
     }
   ]
 }
-
 
 ```
