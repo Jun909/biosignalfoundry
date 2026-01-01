@@ -4,7 +4,6 @@ import requests
 from datetime import date, datetime, timezone
 
 
-
 class Dataset(str, Enum):
     ANIMAL_AND_VETERINARY_EVENT = "animalandveterinary/event"
     DRUG_EVENT = "drug/event"
@@ -34,9 +33,10 @@ class Dataset(str, Enum):
 
 
 class SearchClause:
-    def __init__(self, field: str, term: str):
+    def __init__(self, field: str, term: str, raw: bool = False):
         self.field = field
         self.term = term
+        self.raw = raw
 
     def to_query(self) -> str:
         return f"{self.field}:{self.term}"
@@ -51,6 +51,7 @@ class Query:
         count: str | None = None,
         limit: int = 100,
         skip: int = 0,
+        date_filter: bool = False,
     ):
         """
         Args:
@@ -67,8 +68,9 @@ class Query:
         self.count = count
         self.limit = limit
         self.skip = skip
+        self.date_filter = date_filter
 
-    def compile(self) -> dict[str, str]:
+    def compile(self) -> tuple[dict[str, str], bool]:
         params: dict[str, str] = {}
 
         if self.search:
@@ -85,11 +87,11 @@ class Query:
         else:
             params["limit"] = str(self.limit)
             params["skip"] = str(self.skip)
-        
+
         if self.sort:
             params["sort"] = self.sort
 
-        return params
+        return params, self.date_filter
 
 
 class OpenFDAAPIClient:
@@ -100,30 +102,136 @@ class OpenFDAAPIClient:
         self.timeout = timeout
         self.provider = "OpenFDA"
 
-    def _wrap_response(self, data: Any,) -> dict:
-        try:
-            payload = {
-                "provider": self.provider,
-                "fetched_at": datetime.now(timezone.utc).isoformat(),
-                "data": data,
-                "ok": True,
-            }
-            return payload
-        except Exception as e:
-            resp = {
-                "provider": self.provider,
-                "fetched_at": datetime.now(timezone.utc).isoformat(),
-                "data": [],
-                "ok": False,
-                "error": str(e),
-            }
-            return resp
+    def _wrap_response(
+        self,
+        data: Any,
+    ) -> dict:
+
+        payload = {
+            "provider": self.provider,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "data": data,
+            "ok": True,
+        }
+        return payload
+
+    # def query(self, dataset: Dataset, query: Query) -> dict:
+    #     endpoint = f"{self.BASE_URL}/{dataset.value}.json"
+    #     params, date_filter = query.compile()
+    #     url = endpoint
+    #     if date_filter:
+    #         search_param = params.pop("search", None)
+
+    #         if not isinstance(search_param, str):
+    #             raise ValueError("date_filter=True but no valid search clause provided")
+
+    #         if self.api_key:
+    #             url = endpoint + f"?api_key={self.api_key}&search={search_param}"
+    #         else:
+    #             url = f"{endpoint}?search={search_param}" 
+
+    #         try:
+    #             response = requests.get(url, params=params, timeout=self.timeout)
+    #             response.raise_for_status()
+    #             return self._wrap_response(data=response.json())
+    #         except Exception as e:
+    #             resp = {
+    #                 "provider": self.provider,
+    #                 "fetched_at": datetime.now(timezone.utc).isoformat(),
+    #                 "data": [],
+    #                 "ok": False,
+    #                 "error": str(e) + ". Please try other variation of inputs",
+    #             }
+    #             return resp
+        
+    #     else:
+    #         if self.api_key:
+    #             url = endpoint + f"?api_key={self.api_key}"
+
+    #         try:
+    #             response = requests.get(url, params=params, timeout=self.timeout)
+    #             response.raise_for_status()
+    #             return self._wrap_response(data=response.json())
+    #         except Exception as e:
+    #             resp = {
+    #                 "provider": self.provider,
+    #                 "fetched_at": datetime.now(timezone.utc).isoformat(),
+    #                 "data": [],
+    #                 "ok": False,
+    #                 "error": str(e) + ". Please try other variation of inputs",
+    #             }
+    #             return resp
+
+
+
+    # def query(self, dataset: Dataset, query: Query) -> dict:
+    #     endpoint = f"{self.BASE_URL}/{dataset.value}.json"
+    #     params, date_filter = query.compile()
+
+    #     # Case 1: date range or other raw search → build URL manually
+    #     if date_filter:
+    #         search_param = params.pop("search", None)
+
+    #         if not isinstance(search_param, str):
+    #             raise ValueError("date_filter=True but no valid search clause provided")
+
+    #         # Start query string
+    #         url = f"{endpoint}?search={search_param}"
+
+    #         # Manually append api_key if present
+    #         if self.api_key:
+    #             url += f"&api_key={self.api_key}"
+
+    #         # DO NOT pass params to requests (prevents encoding)
+    #         try:
+    #             response = requests.get(url, timeout=self.timeout)
+    #             response.raise_for_status()
+    #             return self._wrap_response(response.json())
+    #         except Exception as e:
+    #             return self._error(e)
+
+    #     # Case 2: normal queries → let requests handle everything
+    #     else:
+    #         if self.api_key:
+    #             params["api_key"] = self.api_key
+
+    #         try:
+    #             response = requests.get(endpoint, params=params, timeout=self.timeout)
+    #             response.raise_for_status()
+    #             return self._wrap_response(response.json())
+    #         except Exception as e:
+    #             return self._error(e)
+
+
+    def _error(self, e: Exception) -> dict:
+        return {
+            "provider": self.provider,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "data": [],
+            "ok": False,
+            "error": str(e),
+        }
 
     def query(self, dataset: Dataset, query: Query) -> dict:
         endpoint = f"{self.BASE_URL}/{dataset.value}.json"
-        params = query.compile()
+        params, date_filter = query.compile()
+        
         if self.api_key:
             params["api_key"] = self.api_key
-        response = requests.get(endpoint, params=params, timeout=self.timeout)
-        response.raise_for_status()
-        return self._wrap_response(data= response.json())
+
+        # when term has a date range, eg "[20180101+TO+20200723]" 
+        if date_filter:
+            search_val = params.pop("search", None)
+            if not isinstance(search_val, str):
+                raise ValueError("date_filter=True but no valid search clause provided")
+            url = f"{endpoint}?search={search_val}"
+        else:
+            url = endpoint
+
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return self._wrap_response(data=response.json())
+        except Exception as e:
+            return self._error(e) # Using the helper from snippet 2 to keep it DRY
+
