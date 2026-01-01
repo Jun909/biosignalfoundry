@@ -33,10 +33,9 @@ class Dataset(str, Enum):
 
 
 class SearchClause:
-    def __init__(self, field: str, term: str, raw: bool = False):
+    def __init__(self, field: str, term: str):
         self.field = field
         self.term = term
-        self.raw = raw
 
     def to_query(self) -> str:
         return f"{self.field}:{self.term}"
@@ -61,6 +60,7 @@ class Query:
             count: Count the number of unique values. eg "patient.reaction.reactionmeddrapt.exact"
             limit: Return up to this number of records that matches the search parameter
             skip: Skip this number of records that matches the search parameter
+            date_filter: Set to "True" when the 'term' is a date range, eg [20180101+TO+20200723]
         """
         self.search = search or []
         self.operator = operator
@@ -115,94 +115,6 @@ class OpenFDAAPIClient:
         }
         return payload
 
-    # def query(self, dataset: Dataset, query: Query) -> dict:
-    #     endpoint = f"{self.BASE_URL}/{dataset.value}.json"
-    #     params, date_filter = query.compile()
-    #     url = endpoint
-    #     if date_filter:
-    #         search_param = params.pop("search", None)
-
-    #         if not isinstance(search_param, str):
-    #             raise ValueError("date_filter=True but no valid search clause provided")
-
-    #         if self.api_key:
-    #             url = endpoint + f"?api_key={self.api_key}&search={search_param}"
-    #         else:
-    #             url = f"{endpoint}?search={search_param}" 
-
-    #         try:
-    #             response = requests.get(url, params=params, timeout=self.timeout)
-    #             response.raise_for_status()
-    #             return self._wrap_response(data=response.json())
-    #         except Exception as e:
-    #             resp = {
-    #                 "provider": self.provider,
-    #                 "fetched_at": datetime.now(timezone.utc).isoformat(),
-    #                 "data": [],
-    #                 "ok": False,
-    #                 "error": str(e) + ". Please try other variation of inputs",
-    #             }
-    #             return resp
-        
-    #     else:
-    #         if self.api_key:
-    #             url = endpoint + f"?api_key={self.api_key}"
-
-    #         try:
-    #             response = requests.get(url, params=params, timeout=self.timeout)
-    #             response.raise_for_status()
-    #             return self._wrap_response(data=response.json())
-    #         except Exception as e:
-    #             resp = {
-    #                 "provider": self.provider,
-    #                 "fetched_at": datetime.now(timezone.utc).isoformat(),
-    #                 "data": [],
-    #                 "ok": False,
-    #                 "error": str(e) + ". Please try other variation of inputs",
-    #             }
-    #             return resp
-
-
-
-    # def query(self, dataset: Dataset, query: Query) -> dict:
-    #     endpoint = f"{self.BASE_URL}/{dataset.value}.json"
-    #     params, date_filter = query.compile()
-
-    #     # Case 1: date range or other raw search → build URL manually
-    #     if date_filter:
-    #         search_param = params.pop("search", None)
-
-    #         if not isinstance(search_param, str):
-    #             raise ValueError("date_filter=True but no valid search clause provided")
-
-    #         # Start query string
-    #         url = f"{endpoint}?search={search_param}"
-
-    #         # Manually append api_key if present
-    #         if self.api_key:
-    #             url += f"&api_key={self.api_key}"
-
-    #         # DO NOT pass params to requests (prevents encoding)
-    #         try:
-    #             response = requests.get(url, timeout=self.timeout)
-    #             response.raise_for_status()
-    #             return self._wrap_response(response.json())
-    #         except Exception as e:
-    #             return self._error(e)
-
-    #     # Case 2: normal queries → let requests handle everything
-    #     else:
-    #         if self.api_key:
-    #             params["api_key"] = self.api_key
-
-    #         try:
-    #             response = requests.get(endpoint, params=params, timeout=self.timeout)
-    #             response.raise_for_status()
-    #             return self._wrap_response(response.json())
-    #         except Exception as e:
-    #             return self._error(e)
-
-
     def _error(self, e: Exception) -> dict:
         return {
             "provider": self.provider,
@@ -233,5 +145,5 @@ class OpenFDAAPIClient:
             response.raise_for_status()
             return self._wrap_response(data=response.json())
         except Exception as e:
-            return self._error(e) # Using the helper from snippet 2 to keep it DRY
+            return self._error(e)
 
