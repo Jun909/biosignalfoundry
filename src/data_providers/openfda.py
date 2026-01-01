@@ -1,6 +1,8 @@
 from enum import Enum
-
+from typing import Any
 import requests
+from datetime import date, datetime, timezone
+
 
 
 class Dataset(str, Enum):
@@ -50,6 +52,15 @@ class Query:
         limit: int = 100,
         skip: int = 0,
     ):
+        """
+        Args:
+            search: What to search for
+            operator: "AND" or "+".
+            sort: Sort the search result. eg "{field}:asc". Works only if field exists in the dataset.
+            count: Count the number of unique values. eg "patient.reaction.reactionmeddrapt.exact"
+            limit: Return up to this number of records that matches the search parameter
+            skip: Skip this number of records that matches the search parameter
+        """
         self.search = search or []
         self.operator = operator
         self.sort = sort
@@ -74,11 +85,12 @@ class Query:
         else:
             params["limit"] = str(self.limit)
             params["skip"] = str(self.skip)
-
+        
         if self.sort:
             params["sort"] = self.sort
 
         return params
+
 
 class OpenFDAAPIClient:
     BASE_URL = "https://api.fda.gov"
@@ -86,7 +98,27 @@ class OpenFDAAPIClient:
     def __init__(self, api_key: str, timeout: int = 10):
         self.api_key = api_key
         self.timeout = timeout
-    
+        self.provider = "OpenFDA"
+
+    def _wrap_response(self, data: Any,) -> dict:
+        try:
+            payload = {
+                "provider": self.provider,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+                "data": data,
+                "ok": True,
+            }
+            return payload
+        except Exception as e:
+            resp = {
+                "provider": self.provider,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+                "data": [],
+                "ok": False,
+                "error": str(e),
+            }
+            return resp
+
     def query(self, dataset: Dataset, query: Query) -> dict:
         endpoint = f"{self.BASE_URL}/{dataset.value}.json"
         params = query.compile()
@@ -94,4 +126,4 @@ class OpenFDAAPIClient:
             params["api_key"] = self.api_key
         response = requests.get(endpoint, params=params, timeout=self.timeout)
         response.raise_for_status()
-        return response.json()
+        return self._wrap_response(data= response.json())
