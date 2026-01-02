@@ -127,11 +127,11 @@ class OpenFDAAPIClient:
     def query(self, dataset: Dataset, query: Query) -> dict:
         endpoint = f"{self.BASE_URL}/{dataset.value}.json"
         params, date_filter = query.compile()
-        
+
         if self.api_key:
             params["api_key"] = self.api_key
 
-        # when term has a date range, eg "[20180101+TO+20200723]" 
+        # when term has a date range, eg "[20180101+TO+20200723]"
         if date_filter:
             search_val = params.pop("search", None)
             if not isinstance(search_val, str):
@@ -146,4 +146,3 @@ class OpenFDAAPIClient:
             return self._wrap_response(data=response.json())
         except Exception as e:
             return self._error(e)
-
