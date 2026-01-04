@@ -493,14 +493,14 @@ files = [
 
 [[package]]
 name = "edgartools"
-version = "5.7.1"
+version = "5.7.4"
 description = "Navigate Edgar filings with ease"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "edgartools-5.7.1-py3-none-any.whl", hash = "sha256:a95c3bbed89829a0eeeb30fe3a2c7485d6310e8280cce4a6ff458f8908ea0901"},
-    {file = "edgartools-5.7.1.tar.gz", hash = "sha256:b3be59ed2a9760c0f7131bc30bd1e21f00f7c7314e362f9d30eac8b595d441b2"},
+    {file = "edgartools-5.7.4-py3-none-any.whl", hash = "sha256:4426b1ada2ce362707fe6872a7c89e34d4cde16c8957bafd9dccd96d53a043b8"},
+    {file = "edgartools-5.7.4.tar.gz", hash = "sha256:c0ceae976ce8cad2ff2cc8944227a5dc54ab8bd946fa3b07ceebb778ceec72a8"},
 ]
 
 [package.dependencies]
