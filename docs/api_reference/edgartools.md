@@ -1,11 +1,12 @@
 # EDGARTOOLS
 
 Open-sourced project: https://github.com/dgunning/edgartools
+
 Docs: https://edgartools.readthedocs.io/en/latest/
 
 We need it mainly for:
-* Form 4 - Insider intent
-* S-3 / 424B / TM - Dilution risk
-* 8-K - Sudden events
-* 10-Q / 10-K - Cash runway, survival
-* 13F - Just for confirmation
+* Form 4 - Insider intent (Good if insiders buy more shares of the company)
+* S-3 / 424B / TM - Dilution risk (Sell/Avoid if the company cannot survive the next 12 months without dilution)
+* 8-K - Sudden events ("Breaking news" that is enough to affect the stock price)
+* 10-Q / 10-K - Cash runway, survival (10-Q: Quarter update of the company, 10-K: Annual document of the company)
+* 13F - Just for confirmation (Quarterly filing of institutional investment manager, catch: can have 45 days delay of reporting after the quarter ends)
