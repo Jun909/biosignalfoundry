@@ -1,9 +1,9 @@
 from .alphavintage import AlphaVintageAPIClient
 from .finnhub import FinnHubAPIClient
 from .fred import FredAPIClient
-from .massive import MassiveAPIClient
 from .marketstack import MarketStackAPIClient
-from .openfda import Query, SearchClause, Dataset, OpenFDAAPIClient
+from .massive import MassiveAPIClient
+from .openfda import Dataset, OpenFDAAPIClient, Query, SearchClause
 
 __all__ = [
     "AlphaVintageAPIClient",

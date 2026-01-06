@@ -1,7 +1,8 @@
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
+
 import requests
-from datetime import date, datetime, timezone
 
 
 class Dataset(str, Enum):
