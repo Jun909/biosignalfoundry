@@ -1,13 +1,15 @@
-from collections.abc import Iterable
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
+
 import pandas as pd
+import requests
 
 
 class BaseClient:
     """
     Base client class providing common serialization and response formatting
     methods for API clients.
+    TODO: Add rate limiting and caching mechanisms.
     """
 
     def _serialize(self, obj: Any) -> Any:
@@ -32,12 +34,9 @@ class BaseClient:
         elif isinstance(obj, (list, tuple)):
             return [self._serialize(item) for item in obj]
 
-        elif isinstance(obj, datetime):
-            return obj.isoformat()  # Convert datetime to ISO 8601 string
-
-        elif isinstance(obj, date):
+        elif isinstance(obj, (datetime, date)):
             return obj.isoformat()
-        
+
         elif hasattr(obj, "__dict__"):
             return {
                 k: self._serialize(v)
@@ -114,7 +113,7 @@ class BaseClient:
         if pd.api.types.is_datetime64_any_dtype(series.index):
             result = []
             for index, value in series.items():
-                if pd.isna(index):
+                if pd.isna(index):  # type: ignore
                     date_str = None
                 elif isinstance(index, (datetime, date)):
                     date_str = index.isoformat()
@@ -143,6 +142,3 @@ class BaseClient:
 
         # Otherwise, treat as a metadata Series and return a dict of key -> serialized value
         return {str(k): self._serialize(v) for k, v in series.items()}
-    
-    
-

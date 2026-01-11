@@ -14,7 +14,7 @@ For initialization, check: https://pypi.org/project/alpha-vantage/
 - Fundamental Data
 
 ---
-## TimeSeries
+# TimeSeries
 
 ## `get_daily`
 
@@ -186,7 +186,7 @@ Sample output (JSON, truncated):
   }
 }
 ```
-## TechIndicators
+# TechIndicators
 
 ## `get_ad`
 
@@ -902,7 +902,7 @@ Sample output (JSON, truncated):
   "2025-10-31": {"WMA": "228.3791"},
 }
 ```
-## AlphaIntelligence
+# AlphaIntelligence
 ## `get_most_active`
 
 Sample output:
