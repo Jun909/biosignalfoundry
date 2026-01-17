@@ -6,6 +6,7 @@ Docs: https://edgartools.readthedocs.io/en/latest/
 
 We need it mainly for the following documents:
 
+
 ## US based companies
 
 * Form 4 - Insider intent (Good if insiders buy more shares of the company)
@@ -19,3 +20,4 @@ We need it mainly for the following documents:
 * 20-F - Cash runway, survival (Annual document of the company)
 * 6-K - Sudden events
 
+**Note**: Still needs a lot of optimization for the quality of data retrievretrieved
