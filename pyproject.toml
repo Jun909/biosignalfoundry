@@ -20,6 +20,9 @@ dependencies = [
     "redis (>=7.1.0,<8.0.0)",
     "edgartools (>=5.7.1,<6.0.0)",
     "ollama (>=0.6.1,<0.7.0)",
+    "langchain-ollama (>=1.0.1,<2.0.0)",
+    "langchain (>=1.2.6,<2.0.0)",
+    "langchain-deepseek (>=1.0.1,<2.0.0)",
 ]
 
 
