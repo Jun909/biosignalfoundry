@@ -105,3 +105,7 @@ The roadmap is deliberately staged to prevent premature over-engineering
 
 ## Disclaimer
 Nothing in this repository constitutes to financial advice or a recommendation to trade securities.
+
+## Author
+* GitHub: [@Jun909](https://github.com/Jun909)
+* LinkedIn: [Jun Siang Pang](https://www.linkedin.com/in/jun-siang-pang-2640071b0/)

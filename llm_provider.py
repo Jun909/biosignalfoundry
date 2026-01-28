@@ -14,11 +14,11 @@ if LLM_PROVIDER == "ollama":
     )
 elif LLM_PROVIDER == "deepseek":
     llm = ChatDeepSeek(
-    model="deepseek-chat",
-    temperature=0,
+    model="deepseek-chat", # or "deepseek-reasoner"
+    temperature=0.1,
     max_tokens=None,
     timeout=None,
     max_retries=2,
-    api_key=getenv("DEEPSEEK_API_KEY"),
-    base_url="https://api.deepseek.com"
+    api_key=getenv("DEEPSEEK_API_KEY"), # type: ignore
+    base_url="https://api.deepseek.com",
 )
