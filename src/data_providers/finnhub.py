@@ -18,6 +18,12 @@ class FinnHubAPIClient(BaseClient):
         self.provider = "finnhub"
 
     def company_basic_financials(self, ticker: str, metric: str = "all"):
+        """
+        Provides company financials data.
+        Args:
+            ticker (str): Stock ticker symbol, e.g., 'LLY'
+            metric (str): Financial metric to retrieve, e.g., 'all', 'income-statement', 'balance-sheet', 'cash-flow'
+        """
         return self._call(
             self.client,
             self.provider,
@@ -27,11 +33,25 @@ class FinnHubAPIClient(BaseClient):
         )
 
     def company_earnings(self, ticker: str, limit: int | None = None):
+        """
+        Provides company earnings data.
+        Args:
+            ticker (str): Stock ticker symbol, e.g., 'AAPL'
+            limit (int | None): Number of records to retrieve
+        """
         return self._call(
             self.client, self.provider, "company_earnings", symbol=ticker, limit=limit
         )
 
     def company_news(self, ticker: str, from_: str | date, to: str | date):
+        """
+        Provides recent company news.
+
+        Args:
+
+            ticker (str): Stock ticker symbol, e.g., 'AAPL'
+            from_ (str | date): Start date for news retrieval in 'YYYY-MM-DD'
+        """
         return self._call(
             self.client,
             self.provider,
