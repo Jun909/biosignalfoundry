@@ -89,6 +89,7 @@ This project does **not** aim to:
 The following items are **explicitly our of MVP scope** and will be implemented gradually after the MVP is validated:
 
 * Backtesting against historical biotech events
+* Caching
 * Paper trading simulations
 * Continuous improvement of scraping and data quality
 * Architectural evolution (workflow vs swarm)
