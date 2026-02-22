@@ -1,9 +1,10 @@
 from os import getenv
 
 from dotenv import load_dotenv
-from fredapi import Fred
+from langchain.tools import tool
 
 from src.data_providers import AlphaVintageAPIClient
+
 # from src.data_providers.finnhub import FinnHubAPIClient
 # from src.data_providers.fred import FredAPIClient
 # from src.data_providers.marketstack import MarketStackAPIClient
@@ -19,23 +20,44 @@ avclient = AlphaVintageAPIClient(api_key=alphavintagekey or "")
 REDUNDANT_FIELDS = {"costofGoodsAndServicesSold"}
 
 NUMERIC_FIELDS = {
-    "grossProfit", "totalRevenue", "costOfRevenue", "operatingIncome",
-    "sellingGeneralAndAdministrative", "researchAndDevelopment", "operatingExpenses",
-    "netInterestIncome", "interestIncome", "interestExpense", "depreciationAndAmortization",
-    "incomeBeforeTax", "incomeTaxExpense", "netIncomeFromContinuingOperations",
-    "ebit", "ebitda", "netIncome", "otherNonOperatingIncome"
+    "grossProfit",
+    "totalRevenue",
+    "costOfRevenue",
+    "operatingIncome",
+    "sellingGeneralAndAdministrative",
+    "researchAndDevelopment",
+    "operatingExpenses",
+    "netInterestIncome",
+    "interestIncome",
+    "interestExpense",
+    "depreciationAndAmortization",
+    "incomeBeforeTax",
+    "incomeTaxExpense",
+    "netIncomeFromContinuingOperations",
+    "ebit",
+    "ebitda",
+    "netIncome",
+    "otherNonOperatingIncome",
 }
 
+
 def _process_income_statement(raw_response: dict, years: int) -> dict:
+    """
+    Optimize the raw output from AlphaVantage API wrapper. Only shows income statement of last 5 years by default instead of 20 years.
+    Truncate outputs by removing keys that has 'None' as values.
+    """
     if not raw_response.get("ok"):
-        raise ValueError("Income statement response indicates failure.")
+        ticker = raw_response.get("ticker", "unknown")
+        error = raw_response.get("error", "Unknown error")
+        raise ValueError(f"[{ticker}] Income statement fetch failed: {error}")
 
     records: list[dict] = raw_response["data"][0]
     ticker: str = raw_response["ticker"]
     truncated = records[:years]
 
     keys_to_drop = {
-        key for key in truncated[0].keys()
+        key
+        for key in truncated[0].keys()
         if all(record.get(key) in (None, "None") for record in truncated)
     } | REDUNDANT_FIELDS
 
@@ -59,8 +81,17 @@ def _process_income_statement(raw_response: dict, years: int) -> dict:
         "statements": cleaned_records,
     }
 
+
+# @tool
 def get_income_statement_annual(ticker: str, years: int = 5) -> dict:
+    """
+    Provides the annual income statement of a company.
+    Args:
+        ticker: The ticker of a company. Example: AAPL for Apple, MSFT for Microsoft
+        years: Length of past years to track. Default is last 5 years.
+    """
     raw = avclient.get_income_statement_annual(ticker=ticker)
     return _process_income_statement(raw, years=years)
+
 
 print(get_income_statement_annual(ticker="LLY"))

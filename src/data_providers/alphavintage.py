@@ -1,3 +1,4 @@
+import json
 
 from alpha_vantage.alphaintelligence import AlphaIntelligence
 from alpha_vantage.econindicators import EconIndicators
@@ -5,12 +6,11 @@ from alpha_vantage.fundamentaldata import FundamentalData
 from alpha_vantage.techindicators import TechIndicators
 from alpha_vantage.timeseries import TimeSeries
 
+from config import REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE
+from src.core.redis_client import redis_client
+
 from .base import BaseClient
 
-from config import REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE
-
-from utils import redis_client
-import json
 
 class AlphaVintageAPIClient(BaseClient):
     """
@@ -1484,9 +1484,9 @@ class AlphaVintageAPIClient(BaseClient):
         cache_key = f"alphavantage:get_income_statement_annual:{ticker}"
         cache_data = redis_client.get(cache_key)
         if cache_data:
-            return json.loads(cache_data)
+            return json.loads(cache_data)  # type: ignore
 
-        result =  self._call(
+        result = self._call(
             self.client_fundamental_data,
             self.provider,
             "get_income_statement_annual",
@@ -1494,10 +1494,11 @@ class AlphaVintageAPIClient(BaseClient):
         )
 
         if result.get("ok"):
-            redis_client.setex(cache_key, REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE, json.dumps(result))
-    
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE, json.dumps(result)
+            )
+
         return result
-    
 
     def get_splits(self, ticker: str):
         return self._call(

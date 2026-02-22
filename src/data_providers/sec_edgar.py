@@ -541,7 +541,7 @@ class SECEdgarClient(BaseClient):
             thirteen_f = company.get_filings(form="13F-HR").latest().obj()
 
             # Access the holdings DataFrame directly
-            holdings_df = thirteen_f.holdings # type: ignore
+            holdings_df = thirteen_f.holdings  # type: ignore
 
             if holdings_df.empty:
                 return {"ok": True, "data": []}
