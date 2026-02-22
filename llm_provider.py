@@ -1,7 +1,8 @@
-from langchain_ollama import ChatOllama
-from langchain_deepseek import ChatDeepSeek
 from os import getenv
+
 from dotenv import load_dotenv
+from langchain_deepseek import ChatDeepSeek
+from langchain_ollama import ChatOllama
 
 load_dotenv()
 

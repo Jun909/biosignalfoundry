@@ -4,15 +4,17 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 import requests
-from redis import Redis
+from utils import redis_client
+from config import REDIS_CACHE_TTL_SECONDS_MARKETSTACK
+# from redis import Redis
 
-redis_client = Redis(
-    host="localhost",
-    port=6379,
-    db=0,
-    password=os.getenv("REDIS_PASSWORD"),
-    decode_responses=True,
-)
+# redis_client = Redis(
+#     host="localhost",
+#     port=6379,
+#     db=0,
+#     password=os.getenv("REDIS_PASSWORD"),
+#     decode_responses=True,
+# )
 
 
 class MarketStackAPIClient:
@@ -26,7 +28,7 @@ class MarketStackAPIClient:
         self.api_key = api_key
         self._url = "https://api.marketstack.com/v2/"
         self.provider = "marketstack"
-        self.cache_ttl = 604800  # config.py?
+        self.cache_ttl = REDIS_CACHE_TTL_SECONDS_MARKETSTACK
 
     def _wrap_response(self, data: Any, ticker: str, endpoint: str) -> dict:
         try:
