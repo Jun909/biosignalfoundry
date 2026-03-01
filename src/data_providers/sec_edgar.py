@@ -541,13 +541,12 @@ class SECEdgarClient(BaseClient):
             thirteen_f = company.get_filings(form="13F-HR").latest().obj()
 
             # Access the holdings DataFrame directly
-            holdings_df = thirteen_f.holdings # type: ignore
+            holdings_df = thirteen_f.holdings  # type: ignore
 
             if holdings_df.empty:
                 return {"ok": True, "data": []}
 
             # Convert to list of dictionaries (one dict per row)
-            # This is the key line you were looking for:
             holdings_list = holdings_df.to_dict(orient="records")
 
             # Optional: Add portfolio weights and clean values
@@ -561,11 +560,17 @@ class SECEdgarClient(BaseClient):
                     if total_val > 0
                     else 0
                 )
+                item["SharesPrnAmount"] = int(item["SharesPrnAmount"])
+                item["SoleVoting"] = int(item["SoleVoting"])
+                item["SharedVoting"] = int(item["SharedVoting"])
+                item["NonVoting"] = int(item["NonVoting"])
+                item["PutCall"] = item.get("PutCall", "").upper()
 
             result = {
                 "manager_name": thirteen_f.manager_name,
                 "total_holdings": len(holdings_list),
                 "holdings": holdings_list,
+                "report_date": thirteen_f.filing_date,
             }
 
             return self._make_response(

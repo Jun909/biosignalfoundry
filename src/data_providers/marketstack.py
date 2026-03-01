@@ -4,15 +4,19 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 import requests
-from redis import Redis
 
-redis_client = Redis(
-    host="localhost",
-    port=6379,
-    db=0,
-    password=os.getenv("REDIS_PASSWORD"),
-    decode_responses=True,
-)
+from config import REDIS_CACHE_TTL_SECONDS_MARKETSTACK
+from src.core.redis_client import redis_client
+
+# from redis import Redis
+
+# redis_client = Redis(
+#     host="localhost",
+#     port=6379,
+#     db=0,
+#     password=os.getenv("REDIS_PASSWORD"),
+#     decode_responses=True,
+# )
 
 
 class MarketStackAPIClient:
@@ -26,7 +30,6 @@ class MarketStackAPIClient:
         self.api_key = api_key
         self._url = "https://api.marketstack.com/v2/"
         self.provider = "marketstack"
-        self.cache_ttl = 604800  # config.py?
 
     def _wrap_response(self, data: Any, ticker: str, endpoint: str) -> dict:
         try:
@@ -79,7 +82,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -102,7 +107,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
         return self._wrap_response(data, ticker, endpoint)
 
@@ -124,7 +131,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -156,7 +165,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -188,7 +199,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -210,7 +223,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -231,7 +246,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -260,7 +277,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
             return self._wrap_response(data, ticker, endpoint)
 
     def dividends_data_specific_ticker(
@@ -288,7 +307,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
             return self._wrap_response(data, ticker, endpoint)
 
     def eod_specific_ticker_specific_date(self, ticker: str, date: str):
@@ -308,7 +329,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -329,7 +352,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -350,7 +375,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -371,7 +398,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -396,7 +425,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -421,7 +452,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -463,7 +496,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -492,7 +527,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -522,7 +559,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -543,7 +582,9 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
 
@@ -565,6 +606,8 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(cache_key, self.cache_ttl, json.dumps(data))
+            redis_client.setex(
+                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+            )
 
             return self._wrap_response(data, "", endpoint)
