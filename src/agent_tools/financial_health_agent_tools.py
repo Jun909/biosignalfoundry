@@ -1,21 +1,18 @@
-from os import getenv
-
-from dotenv import load_dotenv
 from langchain.tools import tool
 
+from config import ALPHAVANTAGE_API_KEY, FINNHUB_API_KEY
 from src.data_providers import AlphaVintageAPIClient
+from src.data_providers.finnhub import FinnHubAPIClient
 
-# from src.data_providers.finnhub import FinnHubAPIClient
 # from src.data_providers.fred import FredAPIClient
 # from src.data_providers.marketstack import MarketStackAPIClient
 # from src.data_providers.massive import MassiveAPIClient
 # from src.data_providers.openfda import (Dataset, OpenFDAAPIClient, Query,
 #                                         SearchClause)
 # from data_providers import AlphaVintageAPIClient
-load_dotenv()
 
-alphavintagekey = getenv("ALPHAVANTAGE_API_KEY")
-avclient = AlphaVintageAPIClient(api_key=alphavintagekey or "")
+avclient = AlphaVintageAPIClient(api_key=ALPHAVANTAGE_API_KEY or "")
+finnclient = FinnHubAPIClient(api_key=FINNHUB_API_KEY or "")
 
 REDUNDANT_FIELDS = {"costofGoodsAndServicesSold"}
 
@@ -38,6 +35,18 @@ NUMERIC_FIELDS = {
     "ebitda",
     "netIncome",
     "otherNonOperatingIncome",
+}
+
+COMPANY_PROFILE_FIELDS_TO_KEEP = {
+    "name",
+    "country",
+    "currency",
+    "exchange",
+    "finnhubIndustry",
+    "ipo",
+    "marketCapitalization",
+    "shareOutstanding",
+    "weburl",
 }
 
 
@@ -82,7 +91,23 @@ def _process_income_statement(raw_response: dict, years: int) -> dict:
     }
 
 
-# @tool
+def _process_company_profile(raw_response: dict) -> dict:
+    if not raw_response.get("ok"):
+        ticker = raw_response.get("ticker", "unknown")
+        error = raw_response.get("error", "Unknown error")
+        raise ValueError(f"[{ticker}] Company profile fetch failed: {error}")
+
+    data = raw_response["data"]
+
+    return {
+        "ticker": raw_response["ticker"],
+        "profile": {
+            k: v for k, v in data.items() if k in COMPANY_PROFILE_FIELDS_TO_KEEP
+        },
+    }
+
+
+@tool
 def get_income_statement_annual(ticker: str, years: int = 5) -> dict:
     """
     Provides the annual income statement of a company.
@@ -94,4 +119,15 @@ def get_income_statement_annual(ticker: str, years: int = 5) -> dict:
     return _process_income_statement(raw, years=years)
 
 
-print(get_income_statement_annual(ticker="LLY"))
+@tool
+def get_company_profile(ticker: str) -> dict:
+    """
+    Provides basic company profile information.
+    Args:
+        ticker: The ticker of a company. Example: AAPL for Apple, MSFT for Microsoft
+    """
+    raw = finnclient.company_profile2(ticker=ticker)
+    return _process_company_profile(raw)
+
+
+
