@@ -1,7 +1,7 @@
 # Agent Tools
 
 ## Overview
-The `agent_tools` module contains tools for specific decision-making pipelines. Each tool focuses on a distinct aspect of biotech stock analysis.
+The `agent_tools` module contains tools for specific decision-making pipelines. Each tool focuses on a distinct aspect of biotech stock analysis. It serves as the third layer to filter data for the agents to use as tools.
 
 ## Implemented Tools
 - **Clinical Pipeline Analysis**: `clinical_pipeline_agent_tools.py`
