@@ -132,6 +132,7 @@ Unit and integration tests (currently minimal structure)
 6. Final decision (BUY/SELL/HOLD/AVOID) is produced
 
 Visual example:
+```
 AlphaVantage SDK
       ↓
 BaseClient (_call) # implement logging here for silent failures
@@ -141,6 +142,7 @@ API wrapper (cache) # should move caching into BaseClient(?)
 Tool processing
       ↓
 Agent tool
+```
 
 ## Future Directions
 - Additional agent types and decision pipelines
