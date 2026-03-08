@@ -20,18 +20,6 @@ Biotech companies are often unprofitable. Negative earnings alone do NOT automat
 
 After retrieving data, analyze step-by-step internally.
 
-Then output in this exact JSON format:
-
-{
-"revenue_trend": "",
-"net_income_trend": "",
-"profitability_status": "",
-"business_stage": "",
-"financial_risk_level": "low | medium | high",
-"summary": "",
-"score": 1-10
-}
-
 Score guidelines:
 
 8-10: Strong financial trajectory

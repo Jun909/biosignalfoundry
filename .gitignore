@@ -3,3 +3,4 @@
 .vscode
 randomtest.py
 __pycache__/
+*-cwd

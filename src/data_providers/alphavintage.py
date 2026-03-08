@@ -1493,10 +1493,10 @@ class AlphaVintageAPIClient(BaseClient):
             symbol=ticker,
         )
 
-        if result.get("ok"):
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE, json.dumps(result)
-            )
+        # cache it regardless of error or not
+        redis_client.setex(
+            cache_key, REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE, json.dumps(result)
+        )
 
         return result
 
