@@ -56,11 +56,21 @@ def _process_income_statement(raw_response: dict, years: int) -> dict:
     Truncate outputs by removing keys that has 'None' as values.
     """
     if not raw_response.get("ok"):
-        ticker = raw_response.get("ticker", "unknown")
-        error = raw_response.get("error", "Unknown error")
-        raise ValueError(f"[{ticker}] Income statement fetch failed: {error}")
+        return {
+            "ok": False,
+            "ticker": raw_response.get("ticker"),
+            "error": raw_response.get("error"),
+        }
 
-    records: list[dict] = raw_response["data"][0]
+    data = raw_response.get("data")
+    if not data:
+        return {
+            "ok": False,
+            "ticker": raw_response.get("ticker"),
+            "error": "No income statement data returned",
+        }
+    records = data[0]
+
     ticker: str = raw_response["ticker"]
     truncated = records[:years]
 
@@ -84,6 +94,7 @@ def _process_income_statement(raw_response: dict, years: int) -> dict:
         cleaned_records.append(cleaned)
 
     return {
+        "ok": True,
         "ticker": ticker,
         "currency_unit": "USD_billions",
         "fiscal_years": [r["fiscalDateEnding"] for r in cleaned_records],
@@ -100,6 +111,7 @@ def _process_company_profile(raw_response: dict) -> dict:
     data = raw_response["data"]
 
     return {
+        "ok": True,
         "ticker": raw_response["ticker"],
         "profile": {
             k: v for k, v in data.items() if k in COMPANY_PROFILE_FIELDS_TO_KEEP
@@ -128,6 +140,3 @@ def get_company_profile(ticker: str) -> dict:
     """
     raw = finnclient.company_profile2(ticker=ticker)
     return _process_company_profile(raw)
-
-
-
