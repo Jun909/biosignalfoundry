@@ -16,10 +16,11 @@ biothrone/
 ├── README.md                     # Project documentation
 ├── Dockerfile                    # Docker image definition
 ├── docker-compose.yml            # Docker services configuration (PostgreSQL, Redis)
+├── app.py                        # Application entry point (main execution)
 │
 ├── src/                          # Main application source code
 │   ├── __init__.py
-│   ├── app.py                    # Application entry point (main execution)
+│   ├── biothrone.py              # Main agent (orchestrator)
 │   │
 │   ├── agents/                   # Agent implementations for decision-making
 │   │   └── financial_health_agent.py      # Agent that analyzes financial health
@@ -135,11 +136,11 @@ Visual example:
 ```
 AlphaVantage SDK
       ↓
-BaseClient (_call) # implement logging here for silent failures
+BaseClient (_call) # Retrieve raw API data and convert them into standard dict format with additional metadata. Will implement logging here for silent failures
       ↓
 API wrapper (cache) # should move caching into BaseClient(?)
       ↓
-Tool processing
+Tool processing # Extract only useful data from API wrapper
       ↓
 Agent tool
 ```

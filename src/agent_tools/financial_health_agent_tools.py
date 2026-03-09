@@ -57,17 +57,17 @@ def _process_income_statement(raw_response: dict, years: int) -> dict:
     """
     if not raw_response.get("ok"):
         return {
-        "ok": False,
-        "ticker": raw_response.get("ticker"),
-        "error": raw_response.get("error")
-    }
+            "ok": False,
+            "ticker": raw_response.get("ticker"),
+            "error": raw_response.get("error"),
+        }
 
     data = raw_response.get("data")
     if not data:
         return {
             "ok": False,
             "ticker": raw_response.get("ticker"),
-            "error": "No income statement data returned"
+            "error": "No income statement data returned",
         }
     records = data[0]
 

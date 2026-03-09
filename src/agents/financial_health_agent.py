@@ -9,8 +9,6 @@ from src.prompts.financial_health_agent_prompt import \
     financial_health_agent_prompt
 
 
-
-
 class FinancialHealthAgentOutput(BaseModel):
     revenue_trend: str = Field(..., description="The revenue trend of the company")
     net_income_trend: str = Field(
@@ -26,11 +24,12 @@ class FinancialHealthAgentOutput(BaseModel):
     summary: str = Field(..., description="The summary of your findings")
     score: int = Field(..., description="Score from 1 - 10")
 
+
 financial_health_agent = create_agent(
     model=llm,
     tools=[get_income_statement_annual, get_company_profile],
     system_prompt=financial_health_agent_prompt,
-    response_format=FinancialHealthAgentOutput
+    response_format=FinancialHealthAgentOutput,
 )
 
 financial_health_subagent = CompiledSubAgent(
