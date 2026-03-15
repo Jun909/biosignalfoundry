@@ -1,15 +1,25 @@
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from langchain.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
 
-from fastapi import FastAPI
-import uvicorn
-from fastapi.responses import StreamingResponse
 from src.biothrone import biothrone
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite's default port
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 class AnalyzeRequest(BaseModel):
-    user_input:str
+    user_input: str
+
 
 def stream_biothrone(user_input: str):
     for namespace, chunk in biothrone.stream(
@@ -48,20 +58,19 @@ def stream_biothrone(user_input: str):
 
         # Stream the final response token by token
         if token.content:
-            yield f"{token.content}"
+            yield f"data: {token.content}\n\n"
 
     yield "data: [DONE]\n\n"
 
+
 @app.post("/analyze")
-def analyze(request: AnalyzeRequest):
+async def analyze(request: AnalyzeRequest):
     return StreamingResponse(
         stream_biothrone(request.user_input),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no"
-        },
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
 
 if __name__ == "__main__":
     uvicorn.run("app:app")

@@ -4,3 +4,5 @@
 randomtest.py
 __pycache__/
 *-cwd
+.env.development
+.env.production
