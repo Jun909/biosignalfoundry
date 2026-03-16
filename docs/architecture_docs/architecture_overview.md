@@ -123,6 +123,26 @@ Unit and integration tests (currently minimal structure)
 - **Dockerfile**: Container image for the application
 - **docker-compose.yml**: Orchestration for PostgreSQL (data storage) and Redis (caching)
 
+### **ui/** - User Interface
+The `ui` folder contains the frontend code for the Biothrone project. It is built using modern web technologies and is structured as follows:
+
+- **Configuration Files**:
+  - `.env.development` and `.env.production`: Environment-specific variables for the frontend.
+  - `eslint.config.js`: ESLint configuration for code linting.
+  - `tsconfig.*.json`: TypeScript configuration files for different environments.
+  - `vite.config.ts`: Vite configuration for building and serving the frontend.
+
+- **Public Assets**:
+  - `favicon.svg` and `icons.svg`: Static assets for the application.
+
+- **Source Code**:
+  - `App.css`, `index.css`: Stylesheets for the application.
+  - `App.tsx`, `main.tsx`: Main React components and entry point for the application.
+  - **API**:
+    - `biothrone.ts`: API integration for communicating with the backend.
+  - **Assets**:
+    - `hero.png`, `react.svg`, `vite.svg`: Static images used in the application.
+
 ## Data Flow
 
 1. **Agents** (`src/agents/`) initiate analysis
