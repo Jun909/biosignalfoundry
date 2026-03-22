@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { analyzeStock } from "./api/biothrone";
+import type { AnalysisResult } from "./api/biothrone";
 
 const SUGGESTIONS = [
   "Should I invest in Moderna?",
@@ -8,31 +9,36 @@ const SUGGESTIONS = [
   "What's your view on CRISPR Therapeutics?",
 ];
 
+const DECISION_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  BUY:   { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/30" },
+  HOLD:  { bg: "bg-yellow-500/15",  text: "text-yellow-400",  border: "border-yellow-500/30"  },
+  SELL:  { bg: "bg-orange-500/15",  text: "text-orange-400",  border: "border-orange-500/30"  },
+  AVOID: { bg: "bg-red-500/15",     text: "text-red-400",     border: "border-red-500/30"     },
+};
+
+const DEFAULT_DECISION_STYLE = { bg: "bg-white/5", text: "text-zinc-300", border: "border-white/10" };
+
 export default function App() {
   const [input, setInput] = useState("");
-  const [response, setResponse] = useState("");
+  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const abortRef = useRef(false);
 
   async function handleSubmit(query: string) {
     if (!query.trim() || loading) return;
 
-    setResponse("");
+    setResult(null);
     setError("");
     setLoading(true);
     setSubmitted(true);
-    abortRef.current = false;
 
     try {
-      await analyzeStock(
-        query,
-        (token) => { if (!abortRef.current) setResponse((prev) => prev + token); },
-        () => setLoading(false)
-      );
+      const data = await analyzeStock(query);
+      setResult(data);
     } catch {
       setError("Could not reach the server. Is the backend running?");
+    } finally {
       setLoading(false);
     }
   }
@@ -43,13 +49,15 @@ export default function App() {
   }
 
   function handleReset() {
-    abortRef.current = true;
     setSubmitted(false);
-    setResponse("");
+    setResult(null);
     setError("");
     setInput("");
     setLoading(false);
   }
+
+  const decisionKey = result?.decision?.toUpperCase() ?? "";
+  const decisionStyle = DECISION_STYLES[decisionKey] ?? DEFAULT_DECISION_STYLE;
 
   return (
     <div className="min-h-screen bg-[#080A0E] text-white flex flex-col" style={{ fontFamily: "'DM Mono', monospace" }}>
@@ -132,29 +140,13 @@ export default function App() {
               </button>
             </div>
 
-            {/* Response */}
-            <div className="flex-1 bg-white/3 border border-white/8 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <div className={`w-1.5 h-1.5 rounded-full ${loading ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
-                <span className="text-xs tracking-widest uppercase text-zinc-500">
-                  {loading ? "Analyzing..." : "Analysis complete"}
-                </span>
-              </div>
-
-              {error && (
-                <p className="text-red-400 text-sm">{error}</p>
-              )}
-
-              {response && (
-                <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
-                  {response}
-                  {loading && (
-                    <span className="inline-block w-[2px] h-[1em] bg-emerald-400 ml-0.5 align-text-bottom animate-pulse" />
-                  )}
-                </p>
-              )}
-
-              {!response && !error && loading && (
+            {/* Loading */}
+            {loading && (
+              <div className="bg-white/3 border border-white/8 rounded-xl p-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs tracking-widest uppercase text-zinc-500">Analyzing...</span>
+                </div>
                 <div className="flex gap-1.5 items-center">
                   {[0, 1, 2].map((i) => (
                     <div
@@ -164,8 +156,65 @@ export default function App() {
                     />
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && !loading && (
+              <div className="bg-white/3 border border-white/8 rounded-xl p-6">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+
+            {/* Structured result */}
+            {result && !loading && (
+              <div className="flex flex-col gap-4">
+
+                {/* Ticker + Decision */}
+                <div className="flex items-center gap-3">
+                  <span
+                    className="text-white font-bold text-2xl tracking-wide"
+                    style={{ fontFamily: "'Syne', sans-serif" }}
+                  >
+                    {result.ticker}
+                  </span>
+                  <span
+                    className={`text-xs font-bold tracking-widest uppercase px-3 py-1 rounded-lg border ${decisionStyle.bg} ${decisionStyle.text} ${decisionStyle.border}`}
+                  >
+                    {result.decision}
+                  </span>
+                </div>
+
+                {/* Confidence */}
+                <div className="bg-white/3 border border-white/8 rounded-xl p-5">
+                  <p className="text-zinc-500 text-xs tracking-widest uppercase mb-3">Confidence</p>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          result.confidence >= 70
+                            ? "bg-emerald-500"
+                            : result.confidence >= 40
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                        }`}
+                        style={{ width: `${result.confidence}%` }}
+                      />
+                    </div>
+                    <span className="text-white text-sm font-semibold tabular-nums w-10 text-right">
+                      {result.confidence}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Reasoning */}
+                <div className="bg-white/3 border border-white/8 rounded-xl p-5">
+                  <p className="text-zinc-500 text-xs tracking-widest uppercase mb-3">Reasoning</p>
+                  <p className="text-zinc-300 text-sm leading-relaxed">{result.reasoning}</p>
+                </div>
+
+              </div>
+            )}
 
           </div>
         )}

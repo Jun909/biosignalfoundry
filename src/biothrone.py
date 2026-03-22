@@ -22,5 +22,5 @@ biothrone = create_deep_agent(
     model=llm,
     system_prompt=biothrone_prompt,
     subagents=[financial_health_subagent],
-    # response_format=BiothroneOutput,
+    response_format=BiothroneOutput,
 )
