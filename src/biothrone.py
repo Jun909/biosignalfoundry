@@ -1,7 +1,5 @@
-from typing import Annotated
-
 from deepagents import create_deep_agent
-from langchain.messages import AIMessage, HumanMessage
+from langchain.agents.structured_output import AutoStrategy
 from pydantic import BaseModel, Field
 
 from llm_provider import llm
@@ -22,5 +20,5 @@ biothrone = create_deep_agent(
     model=llm,
     system_prompt=biothrone_prompt,
     subagents=[financial_health_subagent],
-    # response_format=BiothroneOutput,
+    response_format=AutoStrategy(BiothroneOutput),
 )
