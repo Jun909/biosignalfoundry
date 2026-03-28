@@ -1,12 +1,12 @@
 # Architecture Overview
 
 ## Project Overview
-Biothrone is an applied AI project focused on decision-making for biotech stocks. The system is designed to gather structured evidence from multiple data providers to answer questions like "Should I BUY, SELL, HOLD, or AVOID a given biotech stock?". The project emphasizes signals, reasoning, determinism, and auditability.
+BioSignalFoundry is an applied AI project focused on decision-making for biotech stocks. The system is designed to gather structured evidence from multiple data providers to answer questions like "Should I BUY, SELL, HOLD, or AVOID a given biotech stock?". The project emphasizes signals, reasoning, determinism, and auditability.
 
 ## Repository Structure
 
 ```
-biothrone/
+biosignalfoundry/
 ├── .env                          # Environment variables (secrets, API keys)
 ├── .gitignore                    # Git ignore rules
 ├── config.py                     # Centralized configuration management
@@ -20,7 +20,7 @@ biothrone/
 │
 ├── src/                          # Main application source code
 │   ├── __init__.py
-│   ├── biothrone.py              # Main agent (orchestrator)
+│   ├── biosignalfoundry.py       # Main agent (orchestrator)
 │   │
 │   ├── agents/                   # Agent implementations for decision-making
 │   │   └── financial_health_agent.py      # Agent that analyzes financial health
@@ -47,7 +47,7 @@ biothrone/
 │   │   └── redis_client.py       # Redis client for caching and state management
 │   │
 │   ├── prompts/                  # Prompt templates for LLMs
-│   │   ├── biothrone_prompt.py                      # Main system prompt
+│   │   ├── biosignalfoundry_prompt.py               # Main system prompt
 │   │   └── financial_health_agent_prompt.py         # Financial health agent prompt
 │   │
 │
@@ -103,7 +103,7 @@ Common utilities and infrastructure:
 
 ### **src/prompts/**
 LLM prompt templates:
-- **biothrone_prompt.py**: Master system prompt defining Biothrone's decision-making framework
+- **biosignalfoundry_prompt.py**: Master system prompt defining BioSignalFoundry's decision-making framework
 - **financial_health_agent_prompt.py**: Specialized prompt for the financial health agent
 
 ### **docs/**
@@ -124,7 +124,7 @@ Unit and integration tests (currently minimal structure)
 - **docker-compose.yml**: Orchestration for PostgreSQL (data storage) and Redis (caching)
 
 ### **ui/** - User Interface
-The `ui` folder contains the frontend code for the Biothrone project. It is built using modern web technologies and is structured as follows:
+The `ui` folder contains the frontend code for the BioSignalFoundry project. It is built using modern web technologies and is structured as follows:
 
 - **Configuration Files**:
   - `.env.development` and `.env.production`: Environment-specific variables for the frontend.
@@ -139,7 +139,7 @@ The `ui` folder contains the frontend code for the Biothrone project. It is buil
   - `App.css`, `index.css`: Stylesheets for the application.
   - `App.tsx`, `main.tsx`: Main React components and entry point for the application.
   - **API**:
-    - `biothrone.ts`: API integration for communicating with the backend.
+    - `biosignalfoundry.ts`: API integration for communicating with the backend.
   - **Assets**:
     - `hero.png`, `react.svg`, `vite.svg`: Static images used in the application.
 

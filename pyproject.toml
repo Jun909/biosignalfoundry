@@ -1,5 +1,5 @@
 [project]
-name = "biothrone"
+name = "biosignalfoundry"
 version = "0.0.1"
 description = "An app that helps you achieve financial freedom"
 authors = [
