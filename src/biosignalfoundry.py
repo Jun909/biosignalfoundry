@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field
 
 from llm_provider import llm
 from src.agents.financial_health_agent import financial_health_subagent
-from src.prompts.biothrone_prompt import biothrone_prompt
+from src.prompts.biosignalfoundry_prompt import biosignalfoundry_prompt
 
 
-class BiothroneOutput(BaseModel):
+class BioSignalFoundryOutput(BaseModel):
     ticker: str = Field(..., description="The ticker of the biotech company")
     decision: str = Field(..., description="Decision made - Buy | Hold | Sell | Avoid")
     confidence: int = Field(..., description="A score from 0 to 100")
@@ -16,9 +16,9 @@ class BiothroneOutput(BaseModel):
     )
 
 
-biothrone = create_deep_agent(
+biosignalfoundry = create_deep_agent(
     model=llm,
-    system_prompt=biothrone_prompt,
+    system_prompt=biosignalfoundry_prompt,
     subagents=[financial_health_subagent],
-    response_format=AutoStrategy(BiothroneOutput),
+    response_format=AutoStrategy(BioSignalFoundryOutput),
 )

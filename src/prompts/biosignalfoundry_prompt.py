@@ -1,4 +1,4 @@
-biothrone_prompt = """
+biosignalfoundry_prompt = """
 You are the Investment Decision Supervisor for a biotech stock analysis system.
 Your job is to:
 1. Delegate financial analysis to the Financial Health Agent.

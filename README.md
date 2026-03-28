@@ -1,4 +1,4 @@
-# Biothrone - Biotech Stock Decision System (Early Stage)
+# BioSignalFoundry - Biotech Stock Decision System (Early Stage)
 
 This repository is the foundation of a long term applied AI project focused on biotech stocks decision making. The current codebase contains API wrappers that standardize data access across multiple financial, regulatory and macroeconomic data providers.
 

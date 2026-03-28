@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { analyzeStock } from "./api/biothrone";
-import type { AnalysisResult } from "./api/biothrone";
+import { analyzeStock } from "./api/biosignalfoundry";
+import type { AnalysisResult } from "./api/biosignalfoundry";
 
 const SUGGESTIONS = [
   "Should I invest in Moderna?",
@@ -84,7 +84,7 @@ export default function App() {
             className="text-5xl font-extrabold tracking-tight text-white leading-none mb-2"
             style={{ fontFamily: "'Syne', sans-serif" }}
           >
-            Biothrone
+            BioSignalFoundry
           </h1>
           <p className="text-zinc-500 text-sm">AI-powered biotech investment intelligence</p>
         </header>
