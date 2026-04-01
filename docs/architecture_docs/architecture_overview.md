@@ -7,7 +7,6 @@ BioSignalFoundry is an applied AI project focused on decision-making for biotech
 
 ```
 biosignalfoundry/
-├── .env                          # Environment variables (secrets, API keys)
 ├── .gitignore                    # Git ignore rules
 ├── config.py                     # Centralized configuration management
 ├── llm_provider.py               # LLM provider setup (Ollama or DeepSeek, via LLM_PROVIDER env)
@@ -134,31 +133,13 @@ Unit and integration tests (currently minimal structure)
 - **config.py**: Centralized app configuration. Currently defines Redis connection settings (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`), per-provider cache TTLs (`REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE`, `REDIS_CACHE_TTL_SECONDS_MARKETSTACK`), and reads `ALPHAVANTAGE_API_KEY` / `FINNHUB_API_KEY` from the environment.
 - **llm_provider.py**: Instantiates the LLM based on the `LLM_PROVIDER` environment variable. Supported values: `ollama` (Mistral via Ollama) and `deepseek` (DeepSeek Chat via `langchain_deepseek`).
 - **pyproject.toml**: Project metadata, dependencies, poetry configuration
-- **.env**: Runtime environment variables (API keys, secrets) - not in git
 
 ### **Docker**
 - **Dockerfile**: Container image for the application
 - **docker-compose.yml**: Orchestration for PostgreSQL (data storage) and Redis (caching)
 
 ### **ui/** - User Interface
-The `ui` folder contains the frontend code for the BioSignalFoundry project. It is built using modern web technologies and is structured as follows:
-
-- **Configuration Files**:
-  - `.env.development` and `.env.production`: Environment-specific variables for the frontend.
-  - `eslint.config.js`: ESLint configuration for code linting.
-  - `tsconfig.*.json`: TypeScript configuration files for different environments.
-  - `vite.config.ts`: Vite configuration for building and serving the frontend.
-
-- **Public Assets**:
-  - `favicon.svg` and `icons.svg`: Static assets for the application.
-
-- **Source Code**:
-  - `App.css`, `index.css`: Stylesheets for the application.
-  - `App.tsx`, `main.tsx`: Main React components and entry point for the application.
-  - **API**:
-    - `biosignalfoundry.ts`: API integration for communicating with the backend.
-  - **Assets**:
-    - `hero.png`, `react.svg`, `vite.svg`: Static images used in the application.
+The `ui` folder contains the frontend code for the BioSignalFoundry project. It is built using React framework
 
 ## Data Flow
 
@@ -192,3 +173,4 @@ Agent (LLM)            # Interprets the structured tool output
 - Enhanced auditability and reasoning logs
 - Database integration for historical decisions
 - UI/Dashboard for decision visualization
+- Backtesting
