@@ -1,5 +1,5 @@
 import time
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 
 import structlog
 from langchain.agents.middleware import (
@@ -144,6 +144,42 @@ class LoggingMiddleware(AgentMiddleware):
         return None
 
     # -- wrap-style hook for tool calls --
+
+    async def awrap_tool_call(
+        self,
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
+    ) -> ToolMessage | Command:
+        tool_name = request.tool_call["name"]
+        tool_args = request.tool_call["args"]
+
+        logger.info(
+            "tool call started",
+            agent=self.agent_name,
+            tool=tool_name,
+            tool_args=tool_args,
+        )
+        start = time.perf_counter()
+        try:
+            result = await handler(request)
+            duration_ms = round((time.perf_counter() - start) * 1000)
+            logger.info(
+                "tool call completed",
+                agent=self.agent_name,
+                tool=tool_name,
+                duration_ms=duration_ms,
+            )
+            return result
+        except Exception as e:
+            duration_ms = round((time.perf_counter() - start) * 1000)
+            logger.error(
+                "tool call failed",
+                agent=self.agent_name,
+                tool=tool_name,
+                duration_ms=duration_ms,
+                error=str(e),
+            )
+            raise
 
     def wrap_tool_call(
         self,
