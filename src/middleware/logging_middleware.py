@@ -105,9 +105,7 @@ class LoggingMiddleware(AgentMiddleware):
         )
         return None
 
-    def after_model(
-        self, state: AgentState, runtime: Runtime
-    ) -> dict[str, Any] | None:
+    def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         messages = state.get("messages", [])
         last_msg = messages[-1] if messages else None
 
@@ -129,9 +127,7 @@ class LoggingMiddleware(AgentMiddleware):
             )
         return None
 
-    def after_agent(
-        self, state: AgentState, runtime: Runtime
-    ) -> dict[str, Any] | None:
+    def after_agent(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         messages = state.get("messages", [])
         last_msg = messages[-1] if messages else None
         content = getattr(last_msg, "content", "")

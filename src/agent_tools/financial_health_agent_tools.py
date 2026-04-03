@@ -132,11 +132,25 @@ def get_income_statement_annual(ticker: str, years: int = 5) -> dict:
         ticker: The ticker of a company. Example: AAPL for Apple, MSFT for Microsoft
         years: Length of past years to track. Default is last 5 years.
     """
-    logger.info("tool call started", agent="financial_health", tool="get_income_statement_annual", ticker=ticker, provider="alphavantage")
+    logger.info(
+        "tool call started",
+        agent="financial_health",
+        tool="get_income_statement_annual",
+        ticker=ticker,
+        provider="alphavantage",
+    )
     start = time.perf_counter()
     raw = avclient.get_income_statement_annual(ticker=ticker)
     duration_ms = round((time.perf_counter() - start) * 1000)
-    logger.info("tool call completed", agent="financial_health", tool="get_income_statement_annual", ticker=ticker, provider="alphavantage", duration_ms=duration_ms, ok=raw.get("ok"))
+    logger.info(
+        "tool call completed",
+        agent="financial_health",
+        tool="get_income_statement_annual",
+        ticker=ticker,
+        provider="alphavantage",
+        duration_ms=duration_ms,
+        ok=raw.get("ok"),
+    )
     return _process_income_statement(raw, years=years)
 
 
@@ -147,9 +161,23 @@ def get_company_profile(ticker: str) -> dict:
     Args:
         ticker: The ticker of a company. Example: AAPL for Apple, MSFT for Microsoft
     """
-    logger.info("tool call started", agent="financial_health", tool="get_company_profile", ticker=ticker, provider="finnhub")
+    logger.info(
+        "tool call started",
+        agent="financial_health",
+        tool="get_company_profile",
+        ticker=ticker,
+        provider="finnhub",
+    )
     start = time.perf_counter()
     raw = finnclient.company_profile2(ticker=ticker)
     duration_ms = round((time.perf_counter() - start) * 1000)
-    logger.info("tool call completed", agent="financial_health", tool="get_company_profile", ticker=ticker, provider="finnhub", duration_ms=duration_ms, ok=raw.get("ok"))
+    logger.info(
+        "tool call completed",
+        agent="financial_health",
+        tool="get_company_profile",
+        ticker=ticker,
+        provider="finnhub",
+        duration_ms=duration_ms,
+        ok=raw.get("ok"),
+    )
     return _process_company_profile(raw)
