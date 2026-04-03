@@ -68,7 +68,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080A0E] text-white flex flex-col" style={{ fontFamily: "'DM Mono', monospace" }}>
+    <div className="min-h-screen bg-[#080A0E] text-white flex flex-col overflow-x-hidden" style={{ fontFamily: "'DM Mono', monospace" }}>
 
       {/* Ambient background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -81,7 +81,7 @@ export default function App() {
         {/* Header */}
         <header className="mb-16">
           <h1
-            className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white leading-none mb-2"
+            className="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-none mb-2"
             style={{ fontFamily: "'Syne', sans-serif" }}
           >
             BioSignalFoundry
