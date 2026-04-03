@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from llm_provider import llm
 from src.agents.financial_health_agent import financial_health_subagent
+from src.middleware.logging_middleware import LoggingMiddleware
 from src.prompts.biosignalfoundry_prompt import biosignalfoundry_prompt
 
 
@@ -21,4 +22,5 @@ biosignalfoundry = create_deep_agent(
     system_prompt=biosignalfoundry_prompt,
     subagents=[financial_health_subagent],
     response_format=AutoStrategy(BioSignalFoundryOutput),
+    middleware=[LoggingMiddleware(agent_name="biosignalfoundry")],
 )

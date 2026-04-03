@@ -7,23 +7,22 @@ BioSignalFoundry is an applied AI project focused on decision-making for biotech
 
 ```
 biosignalfoundry/
-├── .env                          # Environment variables (secrets, API keys)
 ├── .gitignore                    # Git ignore rules
 ├── config.py                     # Centralized configuration management
-├── llm_provider.py               # LLM provider setup and configuration
+├── llm_provider.py               # LLM provider setup (Ollama or DeepSeek, via LLM_PROVIDER env)
 ├── pyproject.toml                # Poetry dependencies and project config
 ├── poetry.lock                   # Locked dependency versions
 ├── README.md                     # Project documentation
 ├── Dockerfile                    # Docker image definition
 ├── docker-compose.yml            # Docker services configuration (PostgreSQL, Redis)
-├── app.py                        # Application entry point (main execution)
+├── app.py                        # FastAPI application entry point (exposes /analyze endpoint)
 │
 ├── src/                          # Main application source code
 │   ├── __init__.py
-│   ├── biosignalfoundry.py       # Main agent (orchestrator)
+│   ├── biosignalfoundry.py       # Main deep agent (orchestrator) using deepagents
 │   │
 │   ├── agents/                   # Agent implementations for decision-making
-│   │   └── financial_health_agent.py      # Agent that analyzes financial health
+│   │   └── financial_health_agent.py      # Agent that analyzes financial health (CompiledSubAgent)
 │   │
 │   ├── agent_tools/              # Tools and utilities for agents to use
 │   │   ├── __init__.py
@@ -41,10 +40,15 @@ biosignalfoundry/
 │   │   ├── sec_edgar.py          # SEC filings and corporate data
 │   │   ├── openfda.py            # FDA drug and clinical data
 │   │   ├── marketstack.py        # Market data provider
-│   │   └── massive.py            # (Describe when known)
+│   │   └── massive.py            # (Purpose TBD)
 │   │
 │   ├── core/                     # Core utilities and infrastructure
-│   │   └── redis_client.py       # Redis client for caching and state management
+│   │   ├── redis_client.py       # Redis client for caching and state management
+│   │   └── logging_config.py     # structlog configuration (JSON or coloured output)
+│   │
+│   ├── middleware/               # LangChain agent middleware
+│   │   ├── __init__.py
+│   │   └── logging_middleware.py # LoggingMiddleware: logs agent input/output and tool timing
 │   │
 │   ├── prompts/                  # Prompt templates for LLMs
 │   │   ├── biosignalfoundry_prompt.py               # Main system prompt
@@ -67,7 +71,7 @@ biosignalfoundry/
 │       ├── openfda.md
 │       └── sec_edgar.md
 │
-└── ui/                           # User interface (frontend, TBD)
+└── ui/                           # User interface (frontend)
 ```
 
 ## Directory Descriptions
@@ -75,9 +79,15 @@ biosignalfoundry/
 ### **src/** - Main Application Source
 The core application code organized by functional domain.
 
+### **`app.py`**
+FastAPI application entry point. Exposes a single `POST /analyze` endpoint that accepts a natural-language query, invokes the `biosignalfoundry` deep agent, and returns a structured `BioSignalFoundryOutput` (ticker, decision, confidence, reasoning).
+
+### **`src/biosignalfoundry.py`**
+Defines the top-level `biosignalfoundry` agent using `deepagents.create_deep_agent`. Composes the `financial_health_subagent` and enforces a structured output schema (`BioSignalFoundryOutput`) via `AutoStrategy`.
+
 ### **src/agents/**
-Contains agent implementations that orchestrate decision-making pipelines. Each agent uses tools from `agent_tools/` to gather and analyze data.
-- `financial_health_agent.py`: Main agent for analyzing biotech company financial health
+Contains agent implementations that orchestrate decision-making pipelines. Each agent uses tools from `agent_tools/` to gather and analyze data. Agents are wrapped as `CompiledSubAgent` instances so they can be composed into the top-level deep agent.
+- `financial_health_agent.py`: Agent for analyzing biotech company financial health. Exposes `financial_health_subagent` (a `CompiledSubAgent`).
 
 ### **src/agent_tools/**
 Provides specialized functions (tools) that agents can invoke. The tools further filter and extract data from src/data_providers. Each tool file corresponds to a decision pipeline:
@@ -100,6 +110,11 @@ Wrapper modules for external APIs. Each provider normalizes API responses into c
 ### **src/core/**
 Common utilities and infrastructure:
 - **redis_client.py**: Redis connection management, caching layer for API responses
+- **logging_config.py**: `setup_logging()` configures structlog for the whole application. Outputs human-readable coloured logs in development and JSON lines in production (controlled by the `ENV` environment variable).
+
+### **src/middleware/**
+LangChain `AgentMiddleware` implementations applied at agent construction time:
+- **logging_middleware.py**: `LoggingMiddleware` — logs the agent's input message, every model decision (tool calls or final answer), each tool execution with elapsed time, and the final agent response. Applied to both `biosignalfoundry` and `financial_health_agent`.
 
 ### **src/prompts/**
 LLM prompt templates:
@@ -115,58 +130,47 @@ Project documentation split into two sections:
 Unit and integration tests (currently minimal structure)
 
 ### **Configuration Files**
-- **config.py**: Centralized app configuration (API endpoints, cache settings, etc.)
+- **config.py**: Centralized app configuration. Currently defines Redis connection settings (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`), per-provider cache TTLs (`REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE`, `REDIS_CACHE_TTL_SECONDS_MARKETSTACK`), and reads `ALPHAVANTAGE_API_KEY` / `FINNHUB_API_KEY` from the environment.
+- **llm_provider.py**: Instantiates the LLM based on the `LLM_PROVIDER` environment variable. Supported values: `ollama` (Mistral via Ollama) and `deepseek` (DeepSeek Chat via `langchain_deepseek`).
 - **pyproject.toml**: Project metadata, dependencies, poetry configuration
-- **.env**: Runtime environment variables (API keys, secrets) - not in git
 
 ### **Docker**
 - **Dockerfile**: Container image for the application
 - **docker-compose.yml**: Orchestration for PostgreSQL (data storage) and Redis (caching)
 
 ### **ui/** - User Interface
-The `ui` folder contains the frontend code for the BioSignalFoundry project. It is built using modern web technologies and is structured as follows:
-
-- **Configuration Files**:
-  - `.env.development` and `.env.production`: Environment-specific variables for the frontend.
-  - `eslint.config.js`: ESLint configuration for code linting.
-  - `tsconfig.*.json`: TypeScript configuration files for different environments.
-  - `vite.config.ts`: Vite configuration for building and serving the frontend.
-
-- **Public Assets**:
-  - `favicon.svg` and `icons.svg`: Static assets for the application.
-
-- **Source Code**:
-  - `App.css`, `index.css`: Stylesheets for the application.
-  - `App.tsx`, `main.tsx`: Main React components and entry point for the application.
-  - **API**:
-    - `biosignalfoundry.ts`: API integration for communicating with the backend.
-  - **Assets**:
-    - `hero.png`, `react.svg`, `vite.svg`: Static images used in the application.
+The `ui` folder contains the frontend code for the BioSignalFoundry project. It is built using React framework
 
 ## Data Flow
 
-1. **Agents** (`src/agents/`) initiate analysis
-2. **Agents** call **Agent Tools** (`src/agent_tools/`) to gather specific insights
-3. **Agent Tools** delegate to **Data Providers** (`src/data_providers/`)
-4. **Data Providers** call external APIs and cache results in **Redis** (`src/core/redis_client.py`)
-5. Results are aggregated and processed using **LLM Prompts** (`src/prompts/`)
-6. Final decision (BUY/SELL/HOLD/AVOID) is produced
+### Request path
+1. `app.py` (FastAPI) receives a `POST /analyze` request with a natural-language `user_input`
+2. The request is forwarded to **`biosignalfoundry`** (`src/biosignalfoundry.py`) — a `deepagents` deep agent that acts as the supervisor
+3. The supervisor delegates to **`financial_health_subagent`** (`src/agents/financial_health_agent.py`) via the `CompiledSubAgent` interface
+4. The sub-agent calls **Agent Tools** (`src/agent_tools/financial_health_agent_tools.py`) to gather specific data points
+5. Agent Tools call **Data Providers** (`src/data_providers/`) which hit external APIs and cache responses in **Redis**
+6. The sub-agent returns a structured `FinancialHealthAgentOutput` to the supervisor
+7. The supervisor interprets the financial health score and produces a final `BioSignalFoundryOutput` (BUY/SELL/HOLD/AVOID + confidence + reasoning)
 
-Visual example:
+### Data provider call chain
 ```
-AlphaVantage SDK
+External API SDK
       ↓
-BaseClient (_call) # Retrieve raw API data and convert them into standard dict format with additional metadata. Will implement logging here for silent failures
+BaseClient._call()     # Calls SDK, serializes response to plain dict + metadata
       ↓
-API wrapper (cache) # should move caching into BaseClient(?)
+Provider method        # Thin wrapper; applies Redis caching around _call()
       ↓
-Tool processing # Extract only useful data from API wrapper
+Agent tool (@tool)     # Filters/normalizes the provider response for the agent
       ↓
-Agent tool
+Agent (LLM)            # Interprets the structured tool output
 ```
+
+### Logging
+`LoggingMiddleware` is attached to each agent. It emits structured log events (via structlog) at each stage: agent start, model decision, tool call with timing, and agent response. Log format is controlled by `src/core/logging_config.py`.
 
 ## Future Directions
 - Additional agent types and decision pipelines
 - Enhanced auditability and reasoning logs
 - Database integration for historical decisions
 - UI/Dashboard for decision visualization
+- Backtesting

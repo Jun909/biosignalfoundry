@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from llm_provider import llm
 from src.agent_tools.financial_health_agent_tools import (
     get_company_profile, get_income_statement_annual)
+from src.middleware import LoggingMiddleware
 from src.prompts.financial_health_agent_prompt import \
     financial_health_agent_prompt
 
@@ -30,6 +31,7 @@ financial_health_agent = create_agent(
     tools=[get_income_statement_annual, get_company_profile],
     system_prompt=financial_health_agent_prompt,
     response_format=FinancialHealthAgentOutput,
+    middleware=[LoggingMiddleware(agent_name="financial_health")],
 )
 
 financial_health_subagent = CompiledSubAgent(
