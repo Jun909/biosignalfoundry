@@ -4,10 +4,11 @@ from pydantic import BaseModel, Field
 
 from llm_provider import llm
 from src.agent_tools.financial_health_agent_tools import (
-    get_company_profile, get_income_statement_annual)
+    get_company_profile,
+    get_income_statement_annual,
+)
 from src.middleware import LoggingMiddleware
-from src.prompts.financial_health_agent_prompt import \
-    financial_health_agent_prompt
+from src.prompts.financial_health_agent_prompt import financial_health_agent_prompt
 
 
 class FinancialHealthAgentOutput(BaseModel):

@@ -1,4 +1,5 @@
 from os import getenv
+from dotenv import load_dotenv
 from typing import List
 
 import uvicorn
@@ -10,14 +11,12 @@ from pydantic import BaseModel
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 from src.core.logging_config import setup_logging
 
+load_dotenv()
 logger = setup_logging(
     log_level=getenv("LOG_LEVEL", "INFO"),
     render_json=getenv("ENV") == "production",
 )
 
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = FastAPI()
 

@@ -31,7 +31,7 @@ WORKDIR /app
 COPY --from=builder /app/.venv .venv
 
 # Copy application source
-COPY app.py config.py ./
+COPY app.py config.py llm_provider.py ./
 COPY src/ src/
 
 USER app
