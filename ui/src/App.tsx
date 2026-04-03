@@ -76,12 +76,12 @@ export default function App() {
         <div className="absolute bottom-[-10%] right-[5%] w-[400px] h-[400px] rounded-full bg-teal-900/15 blur-[100px]" />
       </div>
 
-      <div className="relative z-10 flex flex-col min-h-screen max-w-3xl mx-auto w-full px-6 py-12">
+      <div className="relative z-10 flex flex-col min-h-screen max-w-3xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
 
         {/* Header */}
         <header className="mb-16">
           <h1
-            className="text-5xl font-extrabold tracking-tight text-white leading-none mb-2"
+            className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white leading-none mb-2"
             style={{ fontFamily: "'Syne', sans-serif" }}
           >
             BioSignalFoundry
@@ -176,14 +176,14 @@ export default function App() {
               <div className="flex flex-col gap-4">
 
                 {/* Ticker + Decision */}
-                <div className="bg-white/3 border border-white/8 rounded-xl p-6 flex items-center justify-between gap-6">
+                <div className="bg-white/3 border border-white/8 rounded-xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
                   <div>
                     <p className="text-zinc-600 text-xs tracking-widest uppercase mb-1">Ticker</p>
                     <p className="text-white text-3xl font-bold tracking-wider" style={{ fontFamily: "'Syne', sans-serif" }}>
                       {result.ticker.toUpperCase()}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <p className="text-zinc-600 text-xs tracking-widest uppercase mb-2">Decision</p>
                     <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold tracking-widest uppercase ${getDecisionStyle(result.decision).bg} ${getDecisionStyle(result.decision).text}`}>
                       <span className={`w-2 h-2 rounded-full ${getDecisionStyle(result.decision).dot}`} />
