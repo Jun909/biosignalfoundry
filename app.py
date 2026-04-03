@@ -1,4 +1,5 @@
 from os import getenv
+from typing import List
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -14,11 +15,18 @@ logger = setup_logging(
     render_json=getenv("ENV") == "production",
 )
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 app = FastAPI()
+
+_raw_origins = getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+allowed_origins: List[str] = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite's default port
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -32,7 +40,9 @@ class AnalyzeRequest(BaseModel):
 async def analyze(request: AnalyzeRequest):
     try:
         logger.info("analyze request received", user_input=request.user_input)
-        result = await biosignalfoundry.ainvoke({"messages": [HumanMessage(request.user_input)]})
+        result = await biosignalfoundry.ainvoke(
+            {"messages": [HumanMessage(request.user_input)]}
+        )
     except Exception as e:
         logger.exception("agent invocation failed", exc_info=e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -42,8 +52,12 @@ async def analyze(request: AnalyzeRequest):
         logger.info("agent final response", agent_response=structured)
         return structured
 
-    logger.error("agent did not return a structured response", result_keys=list(result.keys()))
-    raise HTTPException(status_code=500, detail="Agent did not return a structured response")
+    logger.error(
+        "agent did not return a structured response", result_keys=list(result.keys())
+    )
+    raise HTTPException(
+        status_code=500, detail="Agent did not return a structured response"
+    )
 
 
 if __name__ == "__main__":

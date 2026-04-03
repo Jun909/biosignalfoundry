@@ -2,12 +2,8 @@ import time
 from typing import Any, Awaitable, Callable
 
 import structlog
-from langchain.agents.middleware import (
-    AgentMiddleware,
-    AgentState,
-    ModelRequest,
-    ModelResponse,
-)
+from langchain.agents.middleware import (AgentMiddleware, AgentState,
+                                         ModelRequest, ModelResponse)
 from langchain.messages import ToolMessage
 from langchain.tools.tool_node import ToolCallRequest
 from langgraph.runtime import Runtime
@@ -105,9 +101,7 @@ class LoggingMiddleware(AgentMiddleware):
         )
         return None
 
-    def after_model(
-        self, state: AgentState, runtime: Runtime
-    ) -> dict[str, Any] | None:
+    def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         messages = state.get("messages", [])
         last_msg = messages[-1] if messages else None
 
@@ -129,9 +123,7 @@ class LoggingMiddleware(AgentMiddleware):
             )
         return None
 
-    def after_agent(
-        self, state: AgentState, runtime: Runtime
-    ) -> dict[str, Any] | None:
+    def after_agent(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         messages = state.get("messages", [])
         last_msg = messages[-1] if messages else None
         content = getattr(last_msg, "content", "")
