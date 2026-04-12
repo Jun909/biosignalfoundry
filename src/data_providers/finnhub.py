@@ -1,8 +1,12 @@
+import json
 from collections.abc import Iterable
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 from finnhub import Client
+
+from config import REDIS_CACHE_TTL_SECONDS_FINNHUB
+from src.core.redis_client import redis_client
 
 from .base import BaseClient
 
@@ -65,7 +69,14 @@ class FinnHubAPIClient(BaseClient):
         return self._call(self.client, self.provider, "company_peers", symbol=ticker)
 
     def company_profile2(self, ticker: str):
-        return self._call(self.client, self.provider, "company_profile2", symbol=ticker)
+        cache_key = f"finnhub:company_profile2:{ticker}"
+        cache_data = redis_client.get(cache_key)
+        if cache_data:
+            return json.loads(cache_data)
+
+        result = self._call(self.client, self.provider, "company_profile2", symbol=ticker)
+        redis_client.setex(cache_key, REDIS_CACHE_TTL_SECONDS_FINNHUB, json.dumps(result))
+        return result
 
     def country(self):
         return self._call(self.client, self.provider, "country")

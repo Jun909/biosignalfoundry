@@ -4,7 +4,7 @@ from langchain_core.callbacks import AsyncCallbackHandler
 
 TOOL_LABELS: dict[str, str] = {
     "get_company_profile": "Fetching company profile",
-    "get_income_statement_annual": "Fetching income statement",
+    "get_income_statement_annual": "Fetching annual income statement",
     "financial_health_agent": "Running financial health analysis",
 }
 

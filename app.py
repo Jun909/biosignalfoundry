@@ -11,8 +11,10 @@ from fastapi.responses import StreamingResponse
 from langchain.messages import HumanMessage
 from pydantic import BaseModel
 
+from config import REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 from src.core.logging_config import setup_logging
+from src.core.redis_client import redis_client
 from src.core.streaming_callback import StreamingProgressCallback
 
 load_dotenv()
@@ -42,6 +44,15 @@ class AnalyzeRequest(BaseModel):
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest):
     logger.info("analyze request received", user_input=request.user_input)
+
+    cache_key = f"biosignalfoundry:analyze:{request.user_input.strip().lower()}"
+    cached = redis_client.get(cache_key)
+    if cached:
+        logger.info("cache hit", user_input=request.user_input)
+        async def cached_stream():
+            yield f"data: {cached}\n\n"
+        return StreamingResponse(cached_stream(), media_type="text/event-stream")
+
     queue: asyncio.Queue = asyncio.Queue()
     callback = StreamingProgressCallback(queue)
 
@@ -54,7 +65,9 @@ async def analyze(request: AnalyzeRequest):
             structured = result.get("structured_response")
             if isinstance(structured, BioSignalFoundryOutput):
                 logger.info("agent final response", agent_response=structured)
-                await queue.put({"type": "result", "data": structured.model_dump()})
+                event = {"type": "result", "data": structured.model_dump()}
+                redis_client.setex(cache_key, REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY, json.dumps(event))
+                await queue.put(event)
             else:
                 logger.error("agent did not return a structured response", result_keys=list(result.keys()))
                 await queue.put({"type": "error", "message": "Agent did not return a structured response"})
