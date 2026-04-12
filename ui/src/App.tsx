@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { analyzeStock } from "./api/biosignalfoundry";
 import type { AnalysisResult } from "./api/biosignalfoundry";
 
@@ -34,9 +34,17 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false);
   const [query, setQuery] = useState("");
   const [progressMessages, setProgressMessages] = useState<string[]>([]);
+  const [showNotification, setShowNotification] = useState(false);
+  const hasShownNotification = useRef(false);
 
   async function handleSubmit(q: string) {
     if (!q.trim() || loading) return;
+
+    if (!hasShownNotification.current) {
+      hasShownNotification.current = true;
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 4500);
+    }
 
     setResult(null);
     setError("");
@@ -74,6 +82,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#080A0E] text-white flex flex-col overflow-x-hidden" style={{ fontFamily: "'DM Mono', monospace" }}>
+
+      {/* iPhone-style ephemeral notification */}
+      <div
+        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${
+          showNotification ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="flex items-center gap-2.5 bg-zinc-800/90 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2.5 shadow-xl shadow-black/50 text-xs text-zinc-200 whitespace-nowrap">
+          <span className="text-base">⏳</span>
+          First load takes ~60 seconds due to free hosting
+        </div>
+      </div>
 
       {/* Ambient background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">

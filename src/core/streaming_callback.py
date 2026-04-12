@@ -14,6 +14,6 @@ class StreamingProgressCallback(AsyncCallbackHandler):
         self.queue = queue
 
     async def on_tool_start(self, serialized: dict, input_str: str, **kwargs) -> None:
-        name = serialized.get("name", "")
+        name = serialized.get("name", "") # serialized returns the name of the tool
         label = TOOL_LABELS.get(name, f"Running {name}...")
         await self.queue.put({"type": "progress", "message": label})
