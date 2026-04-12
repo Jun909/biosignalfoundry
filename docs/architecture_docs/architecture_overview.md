@@ -44,16 +44,18 @@ biosignalfoundry/
 │   │
 │   ├── core/                     # Core utilities and infrastructure
 │   │   ├── redis_client.py       # Redis client for caching and state management
-│   │   └── logging_config.py     # structlog configuration (JSON or coloured output)
+│   │   ├── logging_config.py     # structlog configuration (JSON or coloured output)
+│   │   └── streaming_callback.py # callback for immediate frontend feedback
+│   │
 │   │
 │   ├── middleware/               # LangChain agent middleware
 │   │   ├── __init__.py
 │   │   └── logging_middleware.py # LoggingMiddleware: logs agent input/output and tool timing
 │   │
-│   ├── prompts/                  # Prompt templates for LLMs
-│   │   ├── biosignalfoundry_prompt.py               # Main system prompt
-│   │   └── financial_health_agent_prompt.py         # Financial health agent prompt
-│   │
+│   └── prompts/                  # Prompt templates for LLMs
+│       ├── biosignalfoundry_prompt.py               # Main system prompt
+│       └── financial_health_agent_prompt.py         # Financial health agent prompt
+│    
 │
 ├── tests/                        # Test suite
 │   └── __init__.py
