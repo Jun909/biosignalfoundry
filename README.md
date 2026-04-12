@@ -37,6 +37,9 @@ The repository currently provides **thin, standardized Python wrappers** around 
 Detailed, provider-specific request/response examples can be found in
 [`docs/api_reference/`](docs/api_reference/)
 
+Entire repo architecture can be found in
+[`docs/architecture_docs/`](docs/architecture_docs/)
+
 ## Implemented Data Providers
 
 * Alphavantage
