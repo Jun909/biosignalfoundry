@@ -1,3 +1,5 @@
+import asyncio
+import json
 from os import getenv
 from dotenv import load_dotenv
 from typing import List
@@ -5,11 +7,13 @@ from typing import List
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from langchain.messages import HumanMessage
 from pydantic import BaseModel
 
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 from src.core.logging_config import setup_logging
+from src.core.streaming_callback import StreamingProgressCallback
 
 load_dotenv()
 logger = setup_logging(
@@ -35,28 +39,40 @@ class AnalyzeRequest(BaseModel):
     user_input: str
 
 
-@app.post("/analyze", response_model=BioSignalFoundryOutput)
+@app.post("/analyze")
 async def analyze(request: AnalyzeRequest):
-    try:
-        logger.info("analyze request received", user_input=request.user_input)
-        result = await biosignalfoundry.ainvoke(
-            {"messages": [HumanMessage(request.user_input)]}
-        )
-    except Exception as e:
-        logger.exception("agent invocation failed", exc_info=e)
-        raise HTTPException(status_code=500, detail=str(e))
+    logger.info("analyze request received", user_input=request.user_input)
+    queue: asyncio.Queue = asyncio.Queue()
+    callback = StreamingProgressCallback(queue)
 
-    structured = result.get("structured_response")
-    if isinstance(structured, BioSignalFoundryOutput):
-        logger.info("agent final response", agent_response=structured)
-        return structured
+    async def run_agent():
+        try:
+            result = await biosignalfoundry.ainvoke(
+                {"messages": [HumanMessage(request.user_input)]},
+                config={"callbacks": [callback]},
+            )
+            structured = result.get("structured_response")
+            if isinstance(structured, BioSignalFoundryOutput):
+                logger.info("agent final response", agent_response=structured)
+                await queue.put({"type": "result", "data": structured.model_dump()})
+            else:
+                logger.error("agent did not return a structured response", result_keys=list(result.keys()))
+                await queue.put({"type": "error", "message": "Agent did not return a structured response"})
+        except Exception as e:
+            logger.exception("agent invocation failed", exc_info=e)
+            await queue.put({"type": "error", "message": str(e)})
+        finally:
+            await queue.put(None)
 
-    logger.error(
-        "agent did not return a structured response", result_keys=list(result.keys())
-    )
-    raise HTTPException(
-        status_code=500, detail="Agent did not return a structured response"
-    )
+    async def event_stream():
+        asyncio.create_task(run_agent())
+        while True:
+            event = await queue.get()
+            if event is None:
+                break
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 if __name__ == "__main__":

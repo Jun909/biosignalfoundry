@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { analyzeStock } from "./api/biosignalfoundry";
 import type { AnalysisResult } from "./api/biosignalfoundry";
 
@@ -33,18 +33,30 @@ export default function App() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [query, setQuery] = useState("");
+  const [progressMessages, setProgressMessages] = useState<string[]>([]);
+  const [showNotification, setShowNotification] = useState(false);
+  const hasShownNotification = useRef(false);
 
   async function handleSubmit(q: string) {
     if (!q.trim() || loading) return;
+
+    if (!hasShownNotification.current) {
+      hasShownNotification.current = true;
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 4500);
+    }
 
     setResult(null);
     setError("");
     setLoading(true);
     setSubmitted(true);
     setQuery(q);
+    setProgressMessages([]);
 
     try {
-      const data = await analyzeStock(q);
+      const data = await analyzeStock(q, (msg) =>
+        setProgressMessages((prev) => [...prev, msg])
+      );
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not reach the server. Is the backend running?");
@@ -65,10 +77,23 @@ export default function App() {
     setInput("");
     setLoading(false);
     setQuery("");
+    setProgressMessages([]);
   }
 
   return (
     <div className="min-h-screen bg-[#080A0E] text-white flex flex-col overflow-x-hidden" style={{ fontFamily: "'DM Mono', monospace" }}>
+
+      {/* iPhone-style ephemeral notification */}
+      <div
+        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${
+          showNotification ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="flex items-center gap-2.5 bg-zinc-800/90 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2.5 shadow-xl shadow-black/50 text-xs text-zinc-200 whitespace-nowrap">
+          <span className="text-base">⏳</span>
+          First load takes ~60 seconds due to free hosting
+        </div>
+      </div>
 
       {/* Ambient background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -152,6 +177,11 @@ export default function App() {
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-xs tracking-widest uppercase text-zinc-500">Analyzing...</span>
                 </div>
+                {progressMessages.length > 0 && (
+                  <p className="text-zinc-500 text-xs mb-4">
+                    {progressMessages[progressMessages.length - 1]}
+                  </p>
+                )}
                 <div className="flex gap-1.5 items-center">
                   {[0, 1, 2].map((i) => (
                     <div
