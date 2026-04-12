@@ -33,6 +33,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [query, setQuery] = useState("");
+  const [progressMessages, setProgressMessages] = useState<string[]>([]);
 
   async function handleSubmit(q: string) {
     if (!q.trim() || loading) return;
@@ -42,9 +43,12 @@ export default function App() {
     setLoading(true);
     setSubmitted(true);
     setQuery(q);
+    setProgressMessages([]);
 
     try {
-      const data = await analyzeStock(q);
+      const data = await analyzeStock(q, (msg) =>
+        setProgressMessages((prev) => [...prev, msg])
+      );
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not reach the server. Is the backend running?");
@@ -65,6 +69,7 @@ export default function App() {
     setInput("");
     setLoading(false);
     setQuery("");
+    setProgressMessages([]);
   }
 
   return (
@@ -152,6 +157,11 @@ export default function App() {
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-xs tracking-widest uppercase text-zinc-500">Analyzing...</span>
                 </div>
+                {progressMessages.length > 0 && (
+                  <p className="text-zinc-500 text-xs mb-4">
+                    {progressMessages[progressMessages.length - 1]}
+                  </p>
+                )}
                 <div className="flex gap-1.5 items-center">
                   {[0, 1, 2].map((i) => (
                     <div
