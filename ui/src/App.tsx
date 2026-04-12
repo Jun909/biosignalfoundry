@@ -91,7 +91,7 @@ export default function App() {
       >
         <div className="flex items-center gap-2.5 bg-zinc-800/90 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2.5 shadow-xl shadow-black/50 text-xs text-zinc-200 whitespace-nowrap">
           <span className="text-base">⏳</span>
-          First load takes ~60 seconds due to free hosting
+          First load takes ~60 seconds (maybe more) due to free hosting
         </div>
       </div>
 
