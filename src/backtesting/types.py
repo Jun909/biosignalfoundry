@@ -13,7 +13,7 @@ class DecisionLabel(StrEnum):
 
 
 @dataclass(slots=True)
-class BacktestRequest:
+class BacktestRequest: # config
     ticker: str
     start_date: date
     end_date: date
@@ -23,7 +23,7 @@ class BacktestRequest:
 
 
 @dataclass(slots=True)
-class Signal:
+class Signal: # decision by the system (LLM)
     ticker: str
     as_of_date: date
     decision: DecisionLabel
@@ -32,7 +32,7 @@ class Signal:
 
 
 @dataclass(slots=True)
-class BacktestObservation:
+class BacktestObservation: # basically result
     ticker: str
     as_of_date: date
     exit_date: date
@@ -46,7 +46,7 @@ class BacktestObservation:
 
 
 @dataclass(slots=True)
-class BacktestResult:
+class BacktestResult: # collection of results
     request: BacktestRequest
     observations: list[BacktestObservation] = field(default_factory=list)
 
