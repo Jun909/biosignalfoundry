@@ -27,7 +27,9 @@ def load_prices(ticker: str, start_date: date, end_date: date) -> PriceMap:
 
     prices: PriceMap = {}
     for record in records:
-        date_str = record.get("date", "")[:10]  # "2024-01-15T00:00:00+0000" -> "2024-01-15"
+        date_str = record.get("date", "")[
+            :10
+        ]  # "2024-01-15T00:00:00+0000" -> "2024-01-15"
         close = record.get("close")
         if date_str and close is not None:
             prices[date.fromisoformat(date_str)] = float(close)
@@ -35,7 +37,9 @@ def load_prices(ticker: str, start_date: date, end_date: date) -> PriceMap:
     return prices
 
 
-def nearest_price(prices: PriceMap, target_date: date, max_lookahead: int = 5) -> float | None:
+def nearest_price(
+    prices: PriceMap, target_date: date, max_lookahead: int = 5
+) -> float | None:
     """
     Returns the closing price on target_date, or the next available trading day
     within max_lookahead days. Handles weekends and market holidays.

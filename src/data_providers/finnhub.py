@@ -74,8 +74,12 @@ class FinnHubAPIClient(BaseClient):
         if cache_data:
             return json.loads(cache_data)
 
-        result = self._call(self.client, self.provider, "company_profile2", symbol=ticker)
-        redis_client.setex(cache_key, REDIS_CACHE_TTL_SECONDS_FINNHUB, json.dumps(result))
+        result = self._call(
+            self.client, self.provider, "company_profile2", symbol=ticker
+        )
+        redis_client.setex(
+            cache_key, REDIS_CACHE_TTL_SECONDS_FINNHUB, json.dumps(result)
+        )
         return result
 
     def country(self):

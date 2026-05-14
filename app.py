@@ -1,10 +1,10 @@
 import asyncio
 import json
 from os import getenv
-from dotenv import load_dotenv
 from typing import List
 
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -49,8 +49,10 @@ async def analyze(request: AnalyzeRequest):
     cached = redis_client.get(cache_key)
     if cached:
         logger.info("cache hit", user_input=request.user_input)
+
         async def cached_stream():
             yield f"data: {cached}\n\n"
+
         return StreamingResponse(cached_stream(), media_type="text/event-stream")
 
     queue: asyncio.Queue = asyncio.Queue()
@@ -66,11 +68,23 @@ async def analyze(request: AnalyzeRequest):
             if isinstance(structured, BioSignalFoundryOutput):
                 logger.info("agent final response", agent_response=structured)
                 event = {"type": "result", "data": structured.model_dump()}
-                redis_client.setex(cache_key, REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY, json.dumps(event))
+                redis_client.setex(
+                    cache_key,
+                    REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY,
+                    json.dumps(event),
+                )
                 await queue.put(event)
             else:
-                logger.error("agent did not return a structured response", result_keys=list(result.keys()))
-                await queue.put({"type": "error", "message": "Agent did not return a structured response"})
+                logger.error(
+                    "agent did not return a structured response",
+                    result_keys=list(result.keys()),
+                )
+                await queue.put(
+                    {
+                        "type": "error",
+                        "message": "Agent did not return a structured response",
+                    }
+                )
         except Exception as e:
             logger.exception("agent invocation failed", exc_info=e)
             await queue.put({"type": "error", "message": str(e)})

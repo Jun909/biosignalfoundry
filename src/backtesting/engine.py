@@ -3,16 +3,13 @@ from __future__ import annotations
 from datetime import timedelta
 
 from src.backtesting.price_loader import load_prices, nearest_price
-from src.backtesting.types import (
-    BacktestObservation,
-    BacktestRequest,
-    BacktestResult,
-    DecisionLabel,
-    Signal,
-)
+from src.backtesting.types import (BacktestObservation, BacktestRequest,
+                                   BacktestResult, DecisionLabel, Signal)
 
 
-def _is_correct(decision: DecisionLabel, forward_return: float, request: BacktestRequest) -> bool:
+def _is_correct(
+    decision: DecisionLabel, forward_return: float, request: BacktestRequest
+) -> bool:
     if decision == DecisionLabel.BUY:
         return forward_return >= request.buy_threshold
     if decision in (DecisionLabel.SELL, DecisionLabel.AVOID):
