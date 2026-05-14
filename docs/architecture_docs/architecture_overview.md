@@ -52,9 +52,15 @@ biosignalfoundry/
 │   │   ├── __init__.py
 │   │   └── logging_middleware.py # LoggingMiddleware: logs agent input/output and tool timing
 │   │
-│   └── prompts/                  # Prompt templates for LLMs
-│       ├── biosignalfoundry_prompt.py               # Main system prompt
-│       └── financial_health_agent_prompt.py         # Financial health agent prompt
+│   ├── prompts/                  # Prompt templates for LLMs
+│   │   ├── biosignalfoundry_prompt.py               # Main system prompt
+│   │   └── financial_health_agent_prompt.py         # Financial health agent prompt
+│   │
+│   └── backtesting/              # Backtesting framework for signal validation
+│       ├── __init__.py
+│       ├── types.py              # Data structures (BacktestRequest, Signal, BacktestObservation, BacktestResult)
+│       ├── engine.py             # Backtesting engine (in development)
+│       └── price_loader.py       # Historical price data loader (in development)
 │    
 │
 ├── tests/                        # Test suite
@@ -123,6 +129,12 @@ LLM prompt templates:
 - **biosignalfoundry_prompt.py**: Master system prompt defining BioSignalFoundry's decision-making framework
 - **financial_health_agent_prompt.py**: Specialized prompt for the financial health agent
 
+### **src/backtesting/**
+Backtesting framework for validating trading signals against historical data:
+- **types.py**: Core data structures for backtesting
+- **engine.py**: Core backtesting execution engine (in development)
+- **price_loader.py**: Historical price data loader (in development)
+
 ### **docs/**
 Project documentation split into two sections:
 - **architecture_docs/**: Design and system architecture
@@ -175,4 +187,3 @@ Agent (LLM)            # Interprets the structured tool output
 - Enhanced auditability and reasoning logs
 - Database integration for historical decisions
 - UI/Dashboard for decision visualization
-- Backtesting

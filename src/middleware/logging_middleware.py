@@ -2,12 +2,8 @@ import time
 from typing import Any, Awaitable, Callable
 
 import structlog
-from langchain.agents.middleware import (
-    AgentMiddleware,
-    AgentState,
-    ModelRequest,
-    ModelResponse,
-)
+from langchain.agents.middleware import (AgentMiddleware, AgentState,
+                                         ModelRequest, ModelResponse)
 from langchain.messages import ToolMessage
 from langchain.tools.tool_node import ToolCallRequest
 from langgraph.runtime import Runtime
