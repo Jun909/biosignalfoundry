@@ -64,7 +64,8 @@ biosignalfoundry/
 │    
 │
 ├── tests/                        # Test suite
-│   └── __init__.py
+│   ├── __init__.py
+│   └── test_backtesting_engine.py  # Mock-based tests for the backtesting engine
 │
 ├── docs/                         # Documentation
 │   ├── architecture_docs/        # Architecture and design documentation
@@ -130,10 +131,10 @@ LLM prompt templates:
 - **financial_health_agent_prompt.py**: Specialized prompt for the financial health agent
 
 ### **src/backtesting/**
-Backtesting framework for validating trading signals against historical data:
-- **types.py**: Core data structures for backtesting
-- **engine.py**: Core backtesting execution engine (in development)
-- **price_loader.py**: Historical price data loader (in development)
+Backtesting framework for validating trading signals against historical price data. Evaluates how well `BUY / SELL / HOLD / AVOID` signals predicted actual forward returns:
+- **types.py**: Core data structures — `BacktestRequest`, `Signal`, `DecisionLabel`, `BacktestObservation`, `BacktestResult`
+- **engine.py**: `run(request, signals) → BacktestResult`. For each signal, looks up entry price at `as_of_date` and exit price at `as_of_date + holding_period_days`, then computes `forward_return` and `is_correct` based on configurable `buy_threshold` / `sell_threshold`. Aggregates per-observation results into summary stats (`total_observations`, `correct_observations`, `accuracy`).
+- **price_loader.py**: `load_prices(ticker, start, end) → dict[date, float]` — fetches historical OHLCV data via MarketStack and returns a `{date: close_price}` map used by the engine.
 
 ### **docs/**
 Project documentation split into two sections:
@@ -141,7 +142,16 @@ Project documentation split into two sections:
 - **api_reference/**: External API documentation and examples
 
 ### **tests/**
-Unit and integration tests (currently minimal structure)
+Mock-based unit tests for core engine logic. Heavy dependencies (data providers, API clients) are stubbed via `unittest.mock` and `sys.modules` injection so no live API calls are made.
+
+- **test_backtesting_engine.py**: Verifies `src.backtesting.engine.run` end-to-end. Patches `load_prices` with a fixed `{date: float}` price map and asserts correctness classification for all five `DecisionLabel` cases:
+  | Signal | Return | Expected |
+  |--------|--------|----------|
+  | `BUY` | +15% | correct (≥ 10% threshold) |
+  | `SELL` | −15% | correct (≤ −10% threshold) |
+  | `BUY` | +4% | incorrect (below 10% threshold) |
+  | `HOLD` | +3.75% | correct (within ±10% band) |
+  | `AVOID` | −13.3% | correct (≤ −10% threshold) |
 
 ### **Configuration Files**
 - **config.py**: Centralized app configuration. Currently defines Redis connection settings (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`), per-provider cache TTLs (`REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE`, `REDIS_CACHE_TTL_SECONDS_MARKETSTACK`), and reads `ALPHAVANTAGE_API_KEY` / `FINNHUB_API_KEY` from the environment.
