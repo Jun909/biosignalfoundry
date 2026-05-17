@@ -65,6 +65,7 @@ def _process_income_statement(raw_response: dict, years: int) -> dict:
             "ok": False,
             "ticker": raw_response.get("ticker"),
             "error": raw_response.get("error"),
+            "instruction": "Data is permanently unavailable from the provider. Do not retry this tool call.",
         }
 
     data = raw_response.get("data")
@@ -73,6 +74,7 @@ def _process_income_statement(raw_response: dict, years: int) -> dict:
             "ok": False,
             "ticker": raw_response.get("ticker"),
             "error": "No income statement data returned",
+            "instruction": "Data is permanently unavailable from the provider. Do not retry this tool call.",
         }
     records = data[0]
 
