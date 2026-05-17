@@ -125,12 +125,11 @@ def _process_company_profile(raw_response: dict) -> dict:
 
 
 @tool
-def get_income_statement_annual(ticker: str, years: int = 5) -> dict:
+def get_income_statement_annual(ticker: str) -> dict:
     """
-    Provides the annual income statement of a company.
+    Provides the last 5 years of annual income statement for a company.
     Args:
         ticker: The ticker of a company. Example: AAPL for Apple, MSFT for Microsoft
-        years: Length of past years to track. Default is last 5 years.
     """
     logger.info(
         "tool call started",
@@ -151,7 +150,7 @@ def get_income_statement_annual(ticker: str, years: int = 5) -> dict:
         duration_ms=duration_ms,
         ok=raw.get("ok"),
     )
-    return _process_income_statement(raw, years=years)
+    return _process_income_statement(raw, years=5) # fix it at 5, not providing as an input param to avoid hallucination
 
 
 @tool
