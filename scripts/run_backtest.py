@@ -22,7 +22,7 @@ load_dotenv()
 from langchain.messages import HumanMessage
 
 from src.backtesting.engine import run
-from src.backtesting.types import BacktestRequest, DecisionLabel, Signal
+from src.backtesting.types import BacktestRequest, BacktestResult, DecisionLabel, Signal
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 
 DECISION_MAP: dict[str, DecisionLabel] = {
@@ -56,25 +56,16 @@ async def get_signal(ticker: str, signal_date: date) -> Signal:
     )
 
 
-def print_result(signal: Signal, request: BacktestRequest) -> None:
-    from src.backtesting.price_loader import load_prices, nearest_price
-    from datetime import timedelta
-
-    price_end = request.end_date + timedelta(days=request.holding_period_days + 7)
-    prices = load_prices(request.ticker, request.start_date, price_end)
-
-    exit_date = signal.as_of_date + timedelta(days=request.holding_period_days)
-    entry_price = nearest_price(prices, signal.as_of_date)
-    exit_price = nearest_price(prices, exit_date)
-
+def print_result(result: BacktestResult, signal: Signal) -> None:
     width = 57
+    exit_date = signal.as_of_date + timedelta(days=result.request.holding_period_days)
+
     print(f"\n{'=' * width}")
-    print(f"  Ticker   : {request.ticker}")
+    print(f"  Ticker   : {result.request.ticker}")
     print(f"  Signal   : {signal.as_of_date}  (entry)")
-    print(f"  Exit     : {exit_date}  ({request.holding_period_days} days later)")
+    print(f"  Exit     : {exit_date}  ({result.request.holding_period_days} days later)")
     print(f"  Decision : {signal.decision}  (confidence: {(signal.confidence or 0) * 100:.0f}%)")
     if signal.rationale:
-        # wrap rationale at 50 chars
         words, line, lines = signal.rationale.split(), "", []
         for word in words:
             if len(line) + len(word) + 1 > 50:
@@ -85,29 +76,20 @@ def print_result(signal: Signal, request: BacktestRequest) -> None:
         if line:
             lines.append(line)
         print(f"  Rationale: {lines[0]}")
-        for l in lines[1:]:
-            print(f"             {l}")
+        for ln in lines[1:]:
+            print(f"             {ln}")
     print(f"{'=' * width}")
 
-    if entry_price is None:
-        print("  No entry price found for this date.")
+    if not result.observations:
+        print(f"  No result — exit date {exit_date} may be in the future or prices are missing.")
         print(f"{'=' * width}\n")
         return
 
-    if exit_price is None:
-        print(f"  Entry price : ${entry_price:.2f}")
-        print(f"  Exit price  : N/A  (exit date {exit_date} is in the future or missing)")
-        print(f"{'=' * width}\n")
-        return
-
-    forward_return = (exit_price - entry_price) / entry_price
-    from src.backtesting.engine import _is_correct
-    correct = _is_correct(signal.decision, forward_return, request)
-
-    print(f"  Entry price : ${entry_price:.2f}")
-    print(f"  Exit price  : ${exit_price:.2f}")
-    print(f"  Return      : {forward_return * 100:+.1f}%")
-    print(f"  Correct     : {'✓' if correct else '✗'}")
+    obs = result.observations[0]
+    print(f"  Entry price : ${obs.entry_price:.2f}")
+    print(f"  Exit price  : ${obs.exit_price:.2f}")
+    print(f"  Return      : {obs.forward_return * 100:+.1f}%")
+    print(f"  Correct     : {'✓' if obs.is_correct else '✗'}")
     print(f"{'=' * width}\n")
 
 
@@ -141,7 +123,8 @@ def main() -> None:
         holding_period_days=holding_days,
     )
 
-    print_result(signal, request)
+    result = run(request, [signal])
+    print_result(result, signal)
 
 
 if __name__ == "__main__":
