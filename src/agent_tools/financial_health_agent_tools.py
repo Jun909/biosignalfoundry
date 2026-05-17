@@ -150,7 +150,9 @@ def get_income_statement_annual(ticker: str) -> dict:
         duration_ms=duration_ms,
         ok=raw.get("ok"),
     )
-    return _process_income_statement(raw, years=5) # fix it at 5, not providing as an input param to avoid hallucination
+    return _process_income_statement(
+        raw, years=5
+    )  # fix it at 5, not providing as an input param to avoid hallucination
 
 
 @tool

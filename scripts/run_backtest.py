@@ -6,6 +6,7 @@ Usage:
     python3 scripts/run_backtest.py MRNA
     python3 scripts/run_backtest.py MRNA --signal-date 2025-03-01 --holding-days 30
 """
+
 import argparse
 import asyncio
 import sys
@@ -22,7 +23,8 @@ load_dotenv()
 from langchain.messages import HumanMessage
 
 from src.backtesting.engine import run
-from src.backtesting.types import BacktestRequest, BacktestResult, DecisionLabel, Signal
+from src.backtesting.types import (BacktestRequest, BacktestResult,
+                                   DecisionLabel, Signal)
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 
 DECISION_MAP: dict[str, DecisionLabel] = {
@@ -41,11 +43,15 @@ async def get_signal(ticker: str, signal_date: date) -> Signal:
 
     output: BioSignalFoundryOutput | None = result.get("structured_response")
     if not isinstance(output, BioSignalFoundryOutput):
-        raise RuntimeError(f"Agent did not return a structured response. Keys: {list(result.keys())}")
+        raise RuntimeError(
+            f"Agent did not return a structured response. Keys: {list(result.keys())}"
+        )
 
     decision = DECISION_MAP.get(output.decision.strip().lower())
     if decision is None:
-        raise ValueError(f"Unknown decision from agent: {output.decision!r}. Expected one of {list(DECISION_MAP)}")
+        raise ValueError(
+            f"Unknown decision from agent: {output.decision!r}. Expected one of {list(DECISION_MAP)}"
+        )
 
     return Signal(
         ticker=ticker,
@@ -63,8 +69,12 @@ def print_result(result: BacktestResult, signal: Signal) -> None:
     print(f"\n{'=' * width}")
     print(f"  Ticker   : {result.request.ticker}")
     print(f"  Signal   : {signal.as_of_date}  (entry)")
-    print(f"  Exit     : {exit_date}  ({result.request.holding_period_days} days later)")
-    print(f"  Decision : {signal.decision}  (confidence: {(signal.confidence or 0) * 100:.0f}%)")
+    print(
+        f"  Exit     : {exit_date}  ({result.request.holding_period_days} days later)"
+    )
+    print(
+        f"  Decision : {signal.decision}  (confidence: {(signal.confidence or 0) * 100:.0f}%)"
+    )
     if signal.rationale:
         words, line, lines = signal.rationale.split(), "", []
         for word in words:
@@ -81,7 +91,9 @@ def print_result(result: BacktestResult, signal: Signal) -> None:
     print(f"{'=' * width}")
 
     if not result.observations:
-        print(f"  No result — exit date {exit_date} may be in the future or prices are missing.")
+        print(
+            f"  No result — exit date {exit_date} may be in the future or prices are missing."
+        )
         print(f"{'=' * width}\n")
         return
 
@@ -94,8 +106,12 @@ def print_result(result: BacktestResult, signal: Signal) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run a real backtest using the LLM agent")
-    parser.add_argument("ticker", type=str, help="Biotech stock ticker, e.g. MRNA, GILD, REGN")
+    parser = argparse.ArgumentParser(
+        description="Run a real backtest using the LLM agent"
+    )
+    parser.add_argument(
+        "ticker", type=str, help="Biotech stock ticker, e.g. MRNA, GILD, REGN"
+    )
     parser.add_argument(
         "--signal-date",
         type=date.fromisoformat,
