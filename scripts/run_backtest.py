@@ -1,6 +1,6 @@
 """
 Run a real backtest: invoke the LLM agent for a ticker, then evaluate
-the decision against real MarketStack prices.
+the decision against historical prices from yfinance.
 
 Usage:
     python3 scripts/run_backtest.py MRNA

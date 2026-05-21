@@ -131,28 +131,21 @@ def get_income_statement_annual(ticker: str) -> dict:
     Args:
         ticker: The ticker of a company. Example: AAPL for Apple, MSFT for Microsoft
     """
-    logger.info(
-        "tool call started",
-        agent="financial_health",
-        tool="get_income_statement_annual",
-        ticker=ticker,
-        provider="alphavantage",
-    )
     start = time.perf_counter()
     raw = avclient.get_income_statement_annual(ticker=ticker)
     duration_ms = round((time.perf_counter() - start) * 1000)
+    result = _process_income_statement(raw, years=5)
     logger.info(
-        "tool call completed",
-        agent="financial_health",
+        "api_call",
         tool="get_income_statement_annual",
-        ticker=ticker,
         provider="alphavantage",
+        ticker=ticker,
         duration_ms=duration_ms,
-        ok=raw.get("ok"),
+        ok=result.get("ok"),
+        years_returned=len(result.get("statements", [])),
+        error=result.get("error"),
     )
-    return _process_income_statement(
-        raw, years=5
-    )  # fix it at 5, not providing as an input param to avoid hallucination
+    return result
 
 
 @tool
@@ -162,23 +155,16 @@ def get_company_profile(ticker: str) -> dict:
     Args:
         ticker: The ticker of a company. Example: AAPL for Apple, MSFT for Microsoft
     """
-    logger.info(
-        "tool call started",
-        agent="financial_health",
-        tool="get_company_profile",
-        ticker=ticker,
-        provider="finnhub",
-    )
     start = time.perf_counter()
     raw = finnclient.company_profile2(ticker=ticker)
     duration_ms = round((time.perf_counter() - start) * 1000)
     logger.info(
-        "tool call completed",
-        agent="financial_health",
+        "api_call",
         tool="get_company_profile",
-        ticker=ticker,
         provider="finnhub",
+        ticker=ticker,
         duration_ms=duration_ms,
         ok=raw.get("ok"),
+        error=raw.get("error"),
     )
     return _process_company_profile(raw)

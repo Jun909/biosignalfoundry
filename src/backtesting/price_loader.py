@@ -2,37 +2,31 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from config import MARKETSTACK_API_KEY
-from src.data_providers.marketstack import MarketStackAPIClient
+import yfinance as yf
 
 PriceMap = dict[date, float]
 
 
 def load_prices(ticker: str, start_date: date, end_date: date) -> PriceMap:
-    client = MarketStackAPIClient(api_key=MARKETSTACK_API_KEY or "")
-    response = client.eod_data(
-        ticker=ticker,
-        date_from=start_date.isoformat(),
-        date_to=end_date.isoformat(),
+    # Fetch one extra day so yfinance's exclusive end date includes end_date
+    df = yf.download(
+        ticker,
+        start=start_date.isoformat(),
+        end=(end_date + timedelta(days=1)).isoformat(),
+        auto_adjust=True,
+        progress=False,
     )
 
-    if not response.get("ok"):
-        raise RuntimeError(
-            f"Failed to load prices for {ticker}: {response.get('error')}"
-        )
-
-    # response["data"] is the raw MarketStack payload: {"data": [...], "pagination": {...}}
-    raw = response.get("data", {})
-    records = raw.get("data", []) if isinstance(raw, dict) else []
+    if df.empty:
+        return {}
 
     prices: PriceMap = {}
-    for record in records:
-        date_str = record.get("date", "")[
-            :10
-        ]  # "2024-01-15T00:00:00+0000" -> "2024-01-15"
-        close = record.get("close")
-        if date_str and close is not None:
-            prices[date.fromisoformat(date_str)] = float(close)
+    for ts, row in df.iterrows():
+        d = ts.date() if hasattr(ts, "date") else date.fromisoformat(str(ts)[:10])
+        close = row["Close"]
+        if hasattr(close, "item"):
+            close = close.item()
+        prices[d] = float(close)
 
     return prices
 
