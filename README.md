@@ -87,13 +87,27 @@ This project does **not** aim to:
 * Replace financial financial advice
 * Use reinforcement learning or black-box optimization
 
+## On Backtesting
+
+Traditional backtesting — replaying historical signal dates and evaluating decisions against past prices — is intentionally not implemented in this project. This is a deliberate design decision, not an oversight.
+
+There are four compounding reasons why proper historical backtesting is not feasible here:
+
+1. **Hallucination risk from date-parameterized tools.** Passing a specific historical date to agent tools and asking the LLM to restrict itself to data available on that date introduces hallucination risk. LLMs are unreliable at consistently honoring such constraints when reasoning over tool outputs.
+
+2. **APIs do not support point-in-time historical data.** Several data providers used in this project (AlphaVantage, Finnhub) return the latest available data regardless of any date argument. There is no way to retrieve what the income statement or company profile looked like on an arbitrary past date through these APIs.
+
+3. **LLM training data contamination.** Even if perfect point-in-time financial data were available, a general-purpose LLM has already seen news, filings, and market commentary about any historically significant biotech stock up to its training cutoff. The model cannot simulate the genuine uncertainty that existed on a past signal date — it has already seen how things turned out.
+
+4. **Point-in-time financial databases are out of scope.** Services that correctly snapshot what financial data was publicly available on any given date (e.g. Bloomberg, Compustat) are expensive, proprietary, and not appropriate for an early-stage open project.
+
+For these reasons, the evaluation strategy used here is **paper trading**: the agent makes a decision using current data, that decision is recorded with today's price as the entry point, and it is evaluated against real prices after the holding period elapses. This is honest, reproducible, and free of look-ahead bias.
+
 ## Planned Roadmap (Post-MVP)
 
-The following items are **explicitly our of MVP scope** and will be implemented gradually after the MVP is validated:
+The following items are **explicitly out of MVP scope** and will be implemented gradually after the MVP is validated:
 
-* Backtesting against historical biotech events
-* Caching
-* Paper trading simulations
+* Paper trading simulations and signal logging
 * Continuous improvement of scraping and data quality
 * Architectural evolution (workflow vs swarm)
 * Multi-agent reasoning (if justified by failure modes)
