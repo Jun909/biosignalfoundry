@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 from os import getenv
 from typing import List
@@ -9,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain.messages import HumanMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from config import REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
@@ -38,14 +39,15 @@ app.add_middleware(
 
 
 class AnalyzeRequest(BaseModel):
-    user_input: str
+    user_input: str = Field(..., min_length=1, max_length=2000)
 
 
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest):
     logger.info("analyze request received", user_input=request.user_input)
 
-    cache_key = f"biosignalfoundry:analyze:{request.user_input.strip().lower()}"
+    input_hash = hashlib.sha256(request.user_input.strip().lower().encode()).hexdigest()
+    cache_key = f"biosignalfoundry:analyze:{input_hash}"
     cached = redis_client.get(cache_key)
     if cached:
         logger.info("cache hit", user_input=request.user_input)
