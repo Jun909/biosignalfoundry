@@ -1,16 +1,47 @@
+import threading
+import time
+from collections import deque
 from datetime import date, datetime, timezone
 from typing import Any, Dict, Optional
 
 import pandas as pd
 import requests
 
-
 class BaseClient:
     """
     Base client class providing common serialization and response formatting
     methods for API clients.
-    TODO: Add rate limiting and caching mechanisms.
+
+    Rate limiting: set _rate_limit_calls and _rate_limit_period in subclasses.
+    Example: _rate_limit_calls = 5; _rate_limit_period = 60.0 → max 5 calls/min.
     """
+
+    _rate_limit_calls: int = 0    # 0 = no limit
+    _rate_limit_period: float = 60.0  # seconds
+
+    def _throttle(self) -> None:
+        calls = self._rate_limit_calls
+        if not calls:
+            return
+        # Lazy, thread-safe initialisation without requiring super().__init__()
+        self.__dict__.setdefault("_rl_lock", threading.Lock())
+        self.__dict__.setdefault("_rl_timestamps", deque())
+        lock: threading.Lock = self.__dict__["_rl_lock"]
+        timestamps: deque = self.__dict__["_rl_timestamps"]
+        with lock:
+            now = time.monotonic()
+            cutoff = now - self._rate_limit_period
+            while timestamps and timestamps[0] < cutoff:
+                timestamps.popleft()
+            if len(timestamps) >= calls:
+                wait = self._rate_limit_period - (now - timestamps[0])
+                if wait > 0:
+                    time.sleep(wait)
+                now = time.monotonic()
+                cutoff = now - self._rate_limit_period
+                while timestamps and timestamps[0] < cutoff:
+                    timestamps.popleft()
+            timestamps.append(time.monotonic())
 
     def _serialize(self, obj: Any) -> Any:
         if obj is None:
@@ -70,6 +101,7 @@ class BaseClient:
     def _call(
         self, client: Any, provider: str, endpoint: str, *args, **kwargs
     ) -> Dict[str, Any]:
+        self._throttle()
         try:
             func = getattr(client, endpoint)
             result = func(*args, **kwargs)
