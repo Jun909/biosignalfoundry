@@ -27,7 +27,7 @@ This is not a trading bot nor financial advice.
 
 ## Current State
 
-The MVP is shipped. The system runs end-to-end: a user asks a question about a biotech stock and receives a structured investment decision with reasoning in real time.
+The MVP is shipped. Check it out here: https://biosignalfoundry-two.vercel.app The system runs end-to-end: a user asks a question about a biotech stock and receives a structured investment decision with reasoning in real time.
 
 **Backend** (`app.py`) — FastAPI service with:
 * A LangChain-based AI reasoning agent that pulls from multiple data providers
