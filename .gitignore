@@ -6,3 +6,5 @@ __pycache__/
 *-cwd
 .env.development
 .env.production
+.DS_Store
+data/
