@@ -6,7 +6,7 @@ from alpha_vantage.fundamentaldata import FundamentalData
 from alpha_vantage.techindicators import TechIndicators
 from alpha_vantage.timeseries import TimeSeries
 
-from config import REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE
+from config import REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE, REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE_ERROR
 from src.core.redis_client import redis_client
 
 from .base import BaseClient
@@ -1493,10 +1493,12 @@ class AlphaVintageAPIClient(BaseClient):
             symbol=ticker,
         )
 
-        # cache it regardless of error or not
-        redis_client.setex(
-            cache_key, REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE, json.dumps(result)
+        ttl = (
+            REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE
+            if result.get("ok")
+            else REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE_ERROR
         )
+        redis_client.setex(cache_key, ttl, json.dumps(result))
 
         return result
 
