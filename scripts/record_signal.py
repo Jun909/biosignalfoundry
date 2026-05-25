@@ -23,7 +23,7 @@ load_dotenv()
 
 from langchain.messages import HumanMessage
 
-from src.backtesting.price_loader import load_prices, nearest_price
+from src.backtesting.price_loader import load_prices, nearest_price_backward
 from src.backtesting.types import DecisionLabel
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 
@@ -91,13 +91,13 @@ def main() -> None:
             f"Expected one of {list(DECISION_MAP)}"
         )
 
-    # Fetch today's entry price via yfinance
-    prices = load_prices(ticker, signal_date, signal_date + timedelta(days=5))
-    entry_price = nearest_price(prices, signal_date)
+    # Fetch entry price: look back up to 7 days so weekends and holidays are handled
+    prices = load_prices(ticker, signal_date - timedelta(days=7), signal_date)
+    entry_price = nearest_price_backward(prices, signal_date)
     if entry_price is None:
         raise RuntimeError(
-            f"Could not fetch entry price for {ticker} on {signal_date}. "
-            "Market may be closed today — try again on a trading day."
+            f"Could not fetch entry price for {ticker} near {signal_date}. "
+            "No trading data found in the last 7 days."
         )
 
     exit_date = signal_date + timedelta(days=holding_days)

@@ -90,12 +90,13 @@ def main() -> None:
         signal_date = date.fromisoformat(r["signal_date"])
         exit_date = date.fromisoformat(r["exit_date"])
 
-        prices = load_prices(ticker, signal_date, exit_date + timedelta(days=5))
-        entry_price = nearest_price(prices, signal_date)
+        entry_price: float = r["entry_price"]  # already captured at record time
+
+        prices = load_prices(ticker, exit_date, exit_date + timedelta(days=5))
         exit_price = nearest_price(prices, exit_date)
 
-        if entry_price is None or exit_price is None:
-            print(f"\n  [{r['id']}] {ticker} — could not fetch prices, skipping.")
+        if exit_price is None:
+            print(f"\n  [{r['id']}] {ticker} — could not fetch exit price for {exit_date}, skipping.")
             continue
 
         fwd = (exit_price - entry_price) / entry_price

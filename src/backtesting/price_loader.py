@@ -36,10 +36,25 @@ def nearest_price(
 ) -> float | None:
     """
     Returns the closing price on target_date, or the next available trading day
-    within max_lookahead days. Handles weekends and market holidays.
+    within max_lookahead days. Used for exit prices. Handles weekends and holidays.
     """
     for offset in range(max_lookahead + 1):
         d = target_date + timedelta(days=offset)
+        if d in prices:
+            return prices[d]
+    return None
+
+
+def nearest_price_backward(
+    prices: PriceMap, target_date: date, max_lookback: int = 7
+) -> float | None:
+    """
+    Returns the closing price on target_date, or the most recent available trading
+    day within max_lookback days. Used for entry prices when today is a weekend
+    or holiday and the market has not yet opened.
+    """
+    for offset in range(max_lookback + 1):
+        d = target_date - timedelta(days=offset)
         if d in prices:
             return prices[d]
     return None
