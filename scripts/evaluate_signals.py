@@ -27,7 +27,7 @@ from src.backtesting.price_loader import load_prices, nearest_price
 
 LOG_PATH = Path(__file__).resolve().parents[1] / "data" / "paper_trades.json"
 
-BUY_THRESHOLD = 0.05   # +5% to be a correct BUY
+BUY_THRESHOLD = 0.05  # +5% to be a correct BUY
 SELL_THRESHOLD = -0.05  # -5% to be a correct SELL or AVOID
 
 
@@ -61,7 +61,8 @@ def main() -> None:
     today = date.today()
 
     to_evaluate = [
-        r for r in records
+        r
+        for r in records
         if date.fromisoformat(r["exit_date"]) <= today
         and (args.all or r["outcome"] is None)
         and (args.ticker is None or r["ticker"] == args.ticker.upper())
@@ -96,7 +97,9 @@ def main() -> None:
         exit_price = nearest_price(prices, exit_date)
 
         if exit_price is None:
-            print(f"\n  [{r['id']}] {ticker} — could not fetch exit price for {exit_date}, skipping.")
+            print(
+                f"\n  [{r['id']}] {ticker} — could not fetch exit price for {exit_date}, skipping."
+            )
             continue
 
         fwd = (exit_price - entry_price) / entry_price
@@ -115,7 +118,9 @@ def main() -> None:
 
         print(f"\n  [{r['id']}] {ticker}")
         print(f"  Signal   : {signal_date}  →  Exit: {exit_date}")
-        print(f"  Decision : {r['decision']}  (confidence: {r['confidence'] * 100:.0f}%)")
+        print(
+            f"  Decision : {r['decision']}  (confidence: {r['confidence'] * 100:.0f}%)"
+        )
         print(f"  Entry    : ${entry_price:.2f}  →  Exit: ${exit_price:.2f}")
         print(f"  Return   : {fwd * 100:+.1f}%")
         print(f"  Correct  : {'✓' if correct else '✗'}")
@@ -137,7 +142,9 @@ def main() -> None:
             print(f"  {v:<12} {len(rs):>8} {correct:>8} {correct / len(rs):>8.0%}")
         total_correct = sum(1 for r in all_evaluated if r["outcome"]["is_correct"])
         print(f"  {'-' * 41}")
-        print(f"  {'Overall':<12} {len(all_evaluated):>8} {total_correct:>8} {total_correct / len(all_evaluated):>8.0%}")
+        print(
+            f"  {'Overall':<12} {len(all_evaluated):>8} {total_correct:>8} {total_correct / len(all_evaluated):>8.0%}"
+        )
         print(f"{'=' * width}\n")
 
     if updated:

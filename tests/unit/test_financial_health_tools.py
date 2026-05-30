@@ -12,14 +12,13 @@ We split coverage into two layers:
      the tool's wiring to _process_* is exercised without any HTTP calls.
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 import src.agent_tools.financial_health_agent_tools as tools_module
 from src.agent_tools.financial_health_agent_tools import (
-    _process_company_profile,
-    _process_income_statement,
-)
+    _process_company_profile, _process_income_statement)
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -34,12 +33,12 @@ VALID_INCOME_RAW = {
         [
             {
                 "fiscalDateEnding": "2023-12-31",
-                "totalRevenue": "5000000000",            # 5 B → 5.0
-                "netIncome": "500000000",                # 0.5 B → 0.5
-                "reportedCurrency": "USD",               # non-numeric → kept as-is
+                "totalRevenue": "5000000000",  # 5 B → 5.0
+                "netIncome": "500000000",  # 0.5 B → 0.5
+                "reportedCurrency": "USD",  # non-numeric → kept as-is
                 "costofGoodsAndServicesSold": "200000000",  # REDUNDANT → dropped
-                "allNullField": None,                    # all-None → dropped
-                "anotherNullField": "None",              # all-"None" → dropped
+                "allNullField": None,  # all-None → dropped
+                "anotherNullField": "None",  # all-"None" → dropped
             },
             {
                 "fiscalDateEnding": "2022-12-31",
@@ -142,8 +141,8 @@ def test_process_income_statement_converts_numeric_fields_to_billions():
     result = _process_income_statement(VALID_INCOME_RAW, years=1)
 
     stmt = result["statements"][0]
-    assert stmt["totalRevenue"] == round(5_000_000_000 / 1e9, 3)   # 5.0
-    assert stmt["netIncome"]    == round(  500_000_000 / 1e9, 3)   # 0.5
+    assert stmt["totalRevenue"] == round(5_000_000_000 / 1e9, 3)  # 5.0
+    assert stmt["netIncome"] == round(500_000_000 / 1e9, 3)  # 0.5
 
 
 def test_process_income_statement_keeps_non_numeric_string_fields():
@@ -231,13 +230,19 @@ def test_process_company_profile_keeps_only_allowed_fields():
 
     profile = result["profile"]
     allowed = {
-        "name", "country", "currency", "exchange",
-        "finnhubIndustry", "ipo", "marketCapitalization",
-        "shareOutstanding", "weburl",
+        "name",
+        "country",
+        "currency",
+        "exchange",
+        "finnhubIndustry",
+        "ipo",
+        "marketCapitalization",
+        "shareOutstanding",
+        "weburl",
     }
-    assert set(profile.keys()) <= allowed, (
-        f"Unexpected keys in profile: {set(profile.keys()) - allowed}"
-    )
+    assert (
+        set(profile.keys()) <= allowed
+    ), f"Unexpected keys in profile: {set(profile.keys()) - allowed}"
     # Spot-check that known-good fields survived
     assert profile["name"] == "NVIDIA Corp"
     assert profile["finnhubIndustry"] == "Semiconductors"

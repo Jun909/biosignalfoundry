@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 import pandas as pd
 import requests
 
+
 class BaseClient:
     """
     Base client class providing common serialization and response formatting
@@ -16,7 +17,7 @@ class BaseClient:
     Example: _rate_limit_calls = 5; _rate_limit_period = 60.0 → max 5 calls/min.
     """
 
-    _rate_limit_calls: int = 0    # 0 = no limit
+    _rate_limit_calls: int = 0  # 0 = no limit
     _rate_limit_period: float = 60.0  # seconds
 
     def _throttle(self) -> None:

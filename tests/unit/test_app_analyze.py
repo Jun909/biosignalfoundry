@@ -67,6 +67,7 @@ def http_client():
 # Test 1 — cache hit must skip the agent entirely
 # ---------------------------------------------------------------------------
 
+
 async def test_cache_hit_skips_agent(http_client):
     """
     When Redis already has a result, the endpoint must:
@@ -94,6 +95,7 @@ async def test_cache_hit_skips_agent(http_client):
 # ---------------------------------------------------------------------------
 # Test 2 — cache miss + agent success → result emitted and written to cache
 # ---------------------------------------------------------------------------
+
 
 async def test_cache_miss_agent_success_emits_result_and_caches(http_client):
     """
@@ -143,6 +145,7 @@ async def test_cache_miss_agent_success_emits_result_and_caches(http_client):
 # Test 3 — agent raises an exception → error event emitted, stream closes
 # ---------------------------------------------------------------------------
 
+
 async def test_cache_miss_agent_exception_emits_error_event(http_client):
     """
     If the agent raises unexpectedly the endpoint must:
@@ -181,6 +184,7 @@ async def test_cache_miss_agent_exception_emits_error_event(http_client):
 # Test 4 — agent returns wrong type → error event emitted, stream closes
 # ---------------------------------------------------------------------------
 
+
 async def test_cache_miss_agent_bad_response_emits_error_event(http_client):
     """
     If the agent returns a result dict whose 'structured_response' key is not
@@ -216,6 +220,7 @@ async def test_cache_miss_agent_bad_response_emits_error_event(http_client):
 # Test 5 — input validation: empty string is rejected before the agent runs
 # ---------------------------------------------------------------------------
 
+
 async def test_input_validation_rejects_empty_string(http_client):
     """
     AnalyzeRequest enforces min_length=1. An empty user_input must return
@@ -230,6 +235,7 @@ async def test_input_validation_rejects_empty_string(http_client):
 # ---------------------------------------------------------------------------
 # Test 6 — input validation: oversized input is rejected
 # ---------------------------------------------------------------------------
+
 
 async def test_input_validation_rejects_too_long_input(http_client):
     """
@@ -246,6 +252,7 @@ async def test_input_validation_rejects_too_long_input(http_client):
 # Test 7 — cache key: same input always produces the same hash
 # ---------------------------------------------------------------------------
 
+
 def test_input_hash_is_deterministic():
     """
     The SHA-256 hash of a given input must be identical across calls.
@@ -261,6 +268,7 @@ def test_input_hash_is_deterministic():
 # ---------------------------------------------------------------------------
 # Test 8 — cache key: whitespace and case are normalised before hashing
 # ---------------------------------------------------------------------------
+
 
 def test_input_hash_normalizes_whitespace_and_case():
     """

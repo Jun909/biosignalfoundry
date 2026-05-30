@@ -12,10 +12,10 @@ import asyncio
 
 from src.core.streaming_callback import TOOL_LABELS, StreamingProgressCallback
 
-
 # ---------------------------------------------------------------------------
 # Test 1 — known tool name is translated to the configured label
 # ---------------------------------------------------------------------------
+
 
 async def test_known_tool_name_emits_mapped_label():
     """
@@ -61,6 +61,7 @@ async def test_all_registered_tools_emit_their_configured_labels():
 # Test 2 — unknown tool name falls back gracefully
 # ---------------------------------------------------------------------------
 
+
 async def test_unknown_tool_name_emits_fallback_label():
     """
     A tool not listed in TOOL_LABELS must not raise — it must emit a
@@ -81,6 +82,7 @@ async def test_unknown_tool_name_emits_fallback_label():
 # Test 3 — missing 'name' key in serialized dict falls back safely
 # ---------------------------------------------------------------------------
 
+
 async def test_missing_name_key_emits_fallback_label():
     """
     LangChain may call on_tool_start with a serialized dict that lacks the
@@ -91,7 +93,7 @@ async def test_missing_name_key_emits_fallback_label():
     queue: asyncio.Queue = asyncio.Queue()
     cb = StreamingProgressCallback(queue)
 
-    await cb.on_tool_start({}, "some_input")   # no 'name' key
+    await cb.on_tool_start({}, "some_input")  # no 'name' key
 
     event = queue.get_nowait()
     assert event["type"] == "progress"
@@ -101,6 +103,7 @@ async def test_missing_name_key_emits_fallback_label():
 # ---------------------------------------------------------------------------
 # Test 4 — each call pushes exactly one event onto the queue
 # ---------------------------------------------------------------------------
+
 
 async def test_on_tool_start_pushes_exactly_one_event():
     """
