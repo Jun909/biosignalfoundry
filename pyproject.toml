@@ -28,6 +28,7 @@ dependencies = [
     "uvicorn (>=0.41.0,<0.42.0)",
     "structlog (>=25.5.0,<26.0.0)",
     "pydantic (>=2.13.4,<3.0.0)",
+    "yfinance (>=0.2.0)",
 ]
 
 
