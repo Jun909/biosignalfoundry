@@ -41,6 +41,29 @@ def _is_correct(decision: str, forward_return: float) -> bool:
     return False
 
 
+def _direction_correct(decision: str, forward_return: float) -> bool:
+    """Looser correctness: did we get the direction right, ignoring magnitude?"""
+    if decision == "BUY":
+        return forward_return > 0
+    if decision in ("SELL", "AVOID"):
+        return forward_return < 0
+    if decision == "HOLD":
+        return SELL_THRESHOLD < forward_return < BUY_THRESHOLD
+    return False
+
+
+def _simulated_pnl(decision: str, confidence: float, forward_return: float) -> float:
+    """Confidence-weighted directional return for one signal.
+
+    Positive = the signal made money if you sized by confidence and shorted SELL/AVOID.
+    """
+    if decision == "BUY":
+        return confidence * forward_return
+    if decision in ("SELL", "AVOID"):
+        return confidence * -forward_return
+    return 0.0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Evaluate matured paper trading signals"
@@ -79,12 +102,12 @@ def main() -> None:
             )
         return
 
-    width = 57
     updated = False
+    w_header = 57
 
-    print(f"\n{'=' * width}")
+    print(f"\n{'=' * w_header}")
     print(f"  Evaluating {len(to_evaluate)} signal(s)  (as of {today})")
-    print(f"{'=' * width}")
+    print(f"{'=' * w_header}")
 
     for r in to_evaluate:
         ticker = r["ticker"]
@@ -125,27 +148,104 @@ def main() -> None:
         print(f"  Return   : {fwd * 100:+.1f}%")
         print(f"  Correct  : {'✓' if correct else '✗'}")
 
-    # Accuracy summary grouped by system version
+    # ── Summary ──────────────────────────────────────────────────────
     all_evaluated = [r for r in records if r["outcome"] is not None]
     if all_evaluated:
+        w = 66
+
+        def _row(label: str, rs: list[dict]) -> str:
+            n = len(rs)
+            thresh = sum(1 for r in rs if r["outcome"]["is_correct"])
+            direc = sum(
+                1 for r in rs
+                if _direction_correct(r["decision"], r["outcome"]["forward_return"])
+            )
+            avg_ret = sum(r["outcome"]["forward_return"] for r in rs) / n
+            sim = (
+                sum(
+                    _simulated_pnl(
+                        r["decision"], r["confidence"], r["outcome"]["forward_return"]
+                    )
+                    for r in rs
+                )
+                / n
+            )
+            return (
+                f"  {label:<12} {n:>4}"
+                f"  {thresh:>3} {thresh / n:>5.0%}"
+                f"  {direc:>3} {direc / n:>5.0%}"
+                f"  {avg_ret:>+7.1%}"
+                f"  {sim:>+7.1%}"
+            )
+
+        HDR = (
+            f"  {'':12} {'N':>4}"
+            f"  {'Threshold':>9}"
+            f"  {'Direction':>9}"
+            f"  {'Avg Ret':>8}"
+            f"  {'Sim P&L':>8}"
+        )
+        SEP = f"  {'-' * (w - 4)}"
+
+        # ── By version ────────────────────────────────────────────────
         versions: dict[str, list[dict]] = {}
         for r in all_evaluated:
             v = r.get("system_version", "unknown")
             versions.setdefault(v, []).append(r)
 
-        print(f"\n{'=' * width}")
+        print(f"\n{'=' * w}")
         print(f"  Performance by system version")
-        print(f"  {'Version':<12} {'Signals':>8} {'Correct':>8} {'Accuracy':>9}")
-        print(f"  {'-' * 41}")
+        print(HDR)
+        print(SEP)
         for v, rs in sorted(versions.items()):
-            correct = sum(1 for r in rs if r["outcome"]["is_correct"])
-            print(f"  {v:<12} {len(rs):>8} {correct:>8} {correct / len(rs):>8.0%}")
-        total_correct = sum(1 for r in all_evaluated if r["outcome"]["is_correct"])
-        print(f"  {'-' * 41}")
+            print(_row(v, rs))
+        print(SEP)
+        print(_row("Overall", all_evaluated))
+
+        # ── By decision type ──────────────────────────────────────────
+        by_decision: dict[str, list[dict]] = {}
+        for r in all_evaluated:
+            by_decision.setdefault(r["decision"], []).append(r)
+
+        print(f"\n  By decision type")
+        print(HDR)
+        print(SEP)
+        for d in ["BUY", "SELL", "AVOID", "HOLD"]:
+            if d in by_decision:
+                print(_row(d, by_decision[d]))
+
+        # ── Confidence calibration ────────────────────────────────────
+        CONF_BUCKETS = [
+            ("<60%",   lambda c: c < 0.60),
+            ("60–70%", lambda c: 0.60 <= c < 0.70),
+            ("70–80%", lambda c: 0.70 <= c < 0.80),
+            ("≥80%",   lambda c: c >= 0.80),
+        ]
+
+        print(f"\n  Confidence calibration")
         print(
-            f"  {'Overall':<12} {len(all_evaluated):>8} {total_correct:>8} {total_correct / len(all_evaluated):>8.0%}"
+            f"  {'':12} {'N':>4}"
+            f"  {'Threshold':>9}"
+            f"  {'Direction':>9}"
         )
-        print(f"{'=' * width}\n")
+        print(SEP)
+        for label, pred in CONF_BUCKETS:
+            rs = [r for r in all_evaluated if pred(r["confidence"])]
+            if not rs:
+                continue
+            n = len(rs)
+            thresh = sum(1 for r in rs if r["outcome"]["is_correct"])
+            direc = sum(
+                1 for r in rs
+                if _direction_correct(r["decision"], r["outcome"]["forward_return"])
+            )
+            print(
+                f"  {label:<12} {n:>4}"
+                f"  {thresh:>3} {thresh / n:>5.0%}"
+                f"  {direc:>3} {direc / n:>5.0%}"
+            )
+
+        print(f"{'=' * w}\n")
 
     if updated:
         LOG_PATH.write_text(json.dumps(records, indent=2, default=str))
