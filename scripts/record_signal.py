@@ -3,7 +3,9 @@ Record a paper trading signal: run the agent for a ticker,
 fetch today's entry price, and append to the signal log.
 
 Usage:
-    poetry run python scripts/record_signal.py MRNA --holding-days 7
+    poetry run python scripts/record_signal.py            # run all tickers in WATCHLIST
+    poetry run python scripts/record_signal.py MRNA       # single ticker
+    poetry run python scripts/record_signal.py MRNA --holding-days 14
 """
 
 import argparse
@@ -38,6 +40,26 @@ DECISION_MAP: dict[str, DecisionLabel] = {
 # compare performance across system versions later.
 SYSTEM_VERSION = "v1.0"
 
+# Fixed watchlist for unbiased weekly coverage.
+# Edit this list to add/remove tickers; run with no positional argument to process all of them.
+WATCHLIST: list[str] = [
+    "AMGN",   # Amgen — large-cap benchmark
+    "GILD",   # Gilead Sciences
+    "REGN",   # Regeneron
+    "VRTX",   # Vertex Pharmaceuticals
+    "BIIB",   # Biogen
+    "ALNY",   # Alnylam — RNA therapeutics
+    "SRPT",   # Sarepta Therapeutics
+    "BMRN",   # BioMarin Pharmaceutical
+    "IONS",   # Ionis Pharmaceuticals
+    "EXEL",   # Exelixis
+    "MRNA",   # Moderna
+    "HALO",   # Halozyme Therapeutics
+    "ACAD",   # ACADIA Pharmaceuticals
+    "RARE",   # Ultragenyx
+    "PTGX",   # Protagonist Therapeutics
+]
+
 LOG_PATH = Path(__file__).resolve().parents[1] / "data" / "paper_trades.json"
 
 
@@ -65,24 +87,9 @@ async def get_decision(ticker: str) -> BioSignalFoundryOutput:
     return output
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Record a paper trading signal")
-    parser.add_argument(
-        "ticker", type=str, help="Biotech stock ticker, e.g. MRNA, GILD, REGN"
-    )
-    parser.add_argument(
-        "--holding-days",
-        type=int,
-        default=7,
-        help="Holding period in calendar days (default: 7)",
-    )
-    args = parser.parse_args()
-
-    ticker = args.ticker.upper()
+def record_one(ticker: str, holding_days: int, records: list[dict]) -> None:
     signal_date = date.today()
-    holding_days = args.holding_days
 
-    # Get agent decision
     output = asyncio.run(get_decision(ticker))
     decision = DECISION_MAP.get(output.decision.strip().lower())
     if decision is None:
@@ -91,7 +98,6 @@ def main() -> None:
             f"Expected one of {list(DECISION_MAP)}"
         )
 
-    # Fetch entry price: look back up to 7 days so weekends and holidays are handled
     prices = load_prices(ticker, signal_date - timedelta(days=7), signal_date)
     entry_price = nearest_price_backward(prices, signal_date)
     if entry_price is None:
@@ -117,9 +123,7 @@ def main() -> None:
         "outcome": None,  # filled in by evaluate_signals.py once exit_date is reached
     }
 
-    records = load_log()
     records.append(record)
-    save_log(records)
 
     width = 55
     print(f"\n{'=' * width}")
@@ -133,6 +137,41 @@ def main() -> None:
     print(f"{'=' * width}")
     print(f"  Run evaluate_signals.py on or after {exit_date} to see the result.")
     print(f"{'=' * width}\n")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Record a paper trading signal")
+    parser.add_argument(
+        "ticker",
+        type=str,
+        nargs="?",
+        help="Biotech stock ticker, e.g. MRNA, GILD, REGN. Omit to run the full WATCHLIST.",
+    )
+    parser.add_argument(
+        "--holding-days",
+        type=int,
+        default=7,
+        help="Holding period in calendar days (default: 7)",
+    )
+    args = parser.parse_args()
+
+    tickers = [args.ticker.upper()] if args.ticker else WATCHLIST
+    holding_days = args.holding_days
+
+    records = load_log()
+    errors: list[tuple[str, str]] = []
+
+    for ticker in tickers:
+        try:
+            record_one(ticker, holding_days, records)
+        except Exception as exc:
+            print(f"\n  [!] {ticker} failed: {exc}")
+            errors.append((ticker, str(exc)))
+
+    save_log(records)
+
+    if errors:
+        print(f"\n  {len(errors)} ticker(s) failed: {', '.join(t for t, _ in errors)}")
 
 
 if __name__ == "__main__":
