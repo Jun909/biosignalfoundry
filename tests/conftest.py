@@ -25,6 +25,9 @@ from unittest.mock import AsyncMock, MagicMock
 os.environ.setdefault("ALPHAVANTAGE_API_KEY", "test-alphavantage-key")
 os.environ.setdefault("FINNHUB_API_KEY", "test-finnhub-key")
 os.environ.setdefault("LLM_PROVIDER", "ollama")
+os.environ.setdefault("POSTGRES_USER", "test")
+os.environ.setdefault("POSTGRES_PASSWORD", "test")
+os.environ.setdefault("POSTGRES_DB", "test")
 
 # ---------------------------------------------------------------------------
 # llm_provider stub

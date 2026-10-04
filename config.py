@@ -1,4 +1,5 @@
 from typing import Literal
+from urllib.parse import quote_plus
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,6 +13,13 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: str | None = None
+
+    # Postgres
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
+    postgres_user: str
+    postgres_password: str
+    postgres_db: str
 
     # Provider API keys
     alphavantage_api_key: str
@@ -38,6 +46,14 @@ class Settings(BaseSettings):
         if self.llm_provider == "deepseek" and not self.deepseek_api_key:
             raise ValueError("DEEPSEEK_API_KEY is required when LLM_PROVIDER=deepseek")
         return self
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{quote_plus(self.postgres_user)}:"
+            f"{quote_plus(self.postgres_password)}@{self.postgres_host}:"
+            f"{self.postgres_port}/{self.postgres_db}"
+        )
 
 
 settings = Settings()
