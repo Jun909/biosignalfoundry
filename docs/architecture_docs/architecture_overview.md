@@ -60,15 +60,18 @@ biosignalfoundry/
 │       ├── __init__.py
 │       ├── types.py              # Data structures (BacktestRequest, Signal, BacktestObservation, BacktestResult)
 │       ├── engine.py             # Evaluation engine
-│       └── price_loader.py       # Historical price data loader
+│       ├── price_loader.py       # Historical price data loader
+│       ├── models.py             # SQLAlchemy PaperTrade model (paper_trades table)
+│       └── repository.py         # upsert_signal: same-day re-run updates instead of duplicating
 │    
 │
 ├── scripts/                      # Paper trading CLI scripts
 │   ├── record_signal.py          # Runs the agent for a ticker, logs a signal + entry price
-│   └── evaluate_signals.py       # Evaluates matured signals against actual exit prices
+│   ├── evaluate_signals.py       # Evaluates matured signals against actual exit prices
+│   └── import_paper_trades.py    # One-time import of the legacy JSON log into Postgres
 │
-├── data/                         # Local data (gitignored except this note)
-│   └── paper_trades.json         # Signal log written/read by the scripts above
+├── alembic/                      # Database migrations (Alembic, async)
+│   └── versions/                 # One file per schema change; apply with `alembic upgrade head`
 │
 ├── tests/                        # Test suite
 │   ├── __init__.py
@@ -81,6 +84,7 @@ biosignalfoundry/
 │   └── integration/               # Tests that hit a real Redis instance
 │       ├── conftest.py
 │       ├── test_app_integration.py
+│       ├── test_paper_trades_db.py
 │       └── test_redis_cache.py
 │
 ├── docs/                         # Documentation
@@ -135,6 +139,7 @@ Wrapper modules for external APIs. Each provider normalizes API responses into c
 ### **src/core/**
 Common utilities and infrastructure:
 - **redis_client.py**: Redis connection management, caching layer for API responses
+- **db.py**: Async SQLAlchemy engine, session factory (`SessionLocal`) and declarative `Base`, built from `Settings.database_url`
 - **logging_config.py**: `setup_logging()` configures structlog for the whole application. Outputs human-readable coloured logs in development and JSON lines in production (controlled by the `ENV` environment variable).
 
 ### **src/middleware/**
@@ -154,11 +159,12 @@ Signal evaluation framework for validating paper trading signals against histori
 
 ### **scripts/**
 CLI entry points for the paper trading loop described in the README's "On Backtesting" section:
-- **record_signal.py**: Runs the agent for a ticker (or the whole watchlist), records today's price as the entry point, and appends the signal to `data/paper_trades.json`.
-- **evaluate_signals.py**: Evaluates signals whose holding period has elapsed against actual exit prices, writing the result back into the same log so each signal is only evaluated once.
+- **record_signal.py**: Runs the agent for a ticker (or the whole watchlist), records today's price as the entry point, and upserts the signal into the `paper_trades` table (a same-day re-run replaces that day's signal).
+- **evaluate_signals.py**: Evaluates signals whose holding period has elapsed against actual exit prices, writing the result back to the same `paper_trades` row so each signal is only evaluated once.
+- **import_paper_trades.py**: One-time, re-runnable import of the legacy `data/paper_trades.json` into Postgres.
 
-### **data/**
-Local, gitignored output directory. Currently holds `paper_trades.json`, the append-only signal log read/written by the `scripts/` above.
+### **alembic/**
+Database migrations. `alembic/env.py` reads the connection URL from `config.Settings.database_url` and the schema from `src.core.db.Base.metadata`, so models and migrations share one source of truth. `src/core/db.py` holds the async engine and session factory.
 
 ### **docs/**
 Project documentation split into two sections:
@@ -181,6 +187,7 @@ Split into `unit/` and `integration/`, matching the two CI jobs in `.github/work
   - **test_financial_health_tools.py**: Tests `src/agent_tools/financial_health_agent_tools.py` against mocked data providers.
   - **test_streaming_callback.py**: Tests `StreamingProgressCallback` (`src/core/streaming_callback.py`).
 - **integration/**: Requires a real Redis instance (see the `redis` service container in CI, or `docker-compose up redis` locally); runs via `uv run pytest tests/integration/ -v`.
+  - **test_paper_trades_db.py**: Tests the `paper_trades` table against a real Postgres (separate `_test` database): migrations match the models, constraints, and same-day upsert behaviour.
   - **test_app_integration.py**, **test_redis_cache.py**: Exercise the `/analyze` endpoint and Redis caching layer against a live Redis, with external APIs/LLM still mocked.
 
 ### **Configuration Files**

@@ -25,13 +25,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from langchain.messages import HumanMessage
-from sqlalchemy import func, literal_column
-from sqlalchemy.dialects.postgresql import insert
 
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 from src.core.db import SessionLocal, engine
-from src.evaluation.models import PaperTrade
 from src.evaluation.price_loader import load_prices, nearest_price_backward
+from src.evaluation.repository import upsert_signal
 from src.evaluation.types import DecisionLabel
 
 DECISION_MAP: dict[str, DecisionLabel] = {
@@ -101,7 +99,7 @@ async def record_one(ticker: str, holding_days: int) -> None:
     exit_date = signal_date + timedelta(days=holding_days)
     confidence = (Decimal(output.confidence) / 100).quantize(Decimal("0.01"))
 
-    stmt = insert(PaperTrade).values(
+    values = dict(
         system_version=SYSTEM_VERSION,
         ticker=ticker,
         signal_date=signal_date,
@@ -112,26 +110,8 @@ async def record_one(ticker: str, holding_days: int) -> None:
         rationale=output.reasoning,
         entry_price=Decimal(str(round(entry_price, 4))),
     )
-    stmt = stmt.on_conflict_do_update(
-        constraint="uq_paper_trade_signal",
-        set_={
-            "exit_date": stmt.excluded.exit_date,
-            "holding_days": stmt.excluded.holding_days,
-            "decision": stmt.excluded.decision,
-            "confidence": stmt.excluded.confidence,
-            "rationale": stmt.excluded.rationale,
-            "entry_price": stmt.excluded.entry_price,
-            "recorded_at": func.now(),
-            # a re-recorded signal invalidates any earlier evaluation
-            "exit_price": None,
-            "forward_return": None,
-            "is_correct": None,
-            "evaluated_at": None,
-        },
-    ).returning(literal_column("(xmax = 0)").label("inserted"))
-
     async with SessionLocal() as session:
-        inserted = (await session.execute(stmt)).scalar_one()
+        inserted = await upsert_signal(session, values)
         await session.commit()
 
     width = 55

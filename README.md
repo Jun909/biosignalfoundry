@@ -88,8 +88,10 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
 ## Planned Roadmap
 
 ### Phase 1 — Stabilization
-* Persistent storage of decisions and signals (PostgreSQL + Alembic) — also unblocks
-  the automated paper trading loop in Phase 2
+* ~~Persistent storage of decisions and signals (PostgreSQL + Alembic) — also unblocks
+  the automated paper trading loop in Phase 2~~ ✅ Done — paper trades live in the
+  `paper_trades` table (`src/evaluation/models.py`, migrations in `alembic/`); re-running
+  a signal for the same ticker/day/version updates it instead of duplicating
 * ~~Integration test suite and CI/CD pipeline~~ ✅ Done — see `.github/workflows/test.yml`
 * ~~Health and readiness endpoints~~ ✅ Done — see `GET /health` and `GET /ready` in `app.py`
 * ~~Rate limiting and abuse/cost control on `/analyze` (currently unauthenticated, and
@@ -112,7 +114,7 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
 ### Phase 2 — Signal Completeness
 * Wire remaining subagents: clinical (OpenFDA), macro (FRED), sentiment (Finnhub)
 * Paper trading loop: record decisions and track returns over time (manual today via
-  `scripts/record_signal.py` / `scripts/evaluate_signals.py`)
+  `scripts/record_signal.py` / `scripts/evaluate_signals.py`, both backed by Postgres)
 * Automate the paper trading loop to run on a schedule instead of by hand
   (mechanism TBD; depends on Phase 1's persistent storage)
 * Deterministic ticker resolution (e.g. AlphaVantage symbol search) ahead of agent
