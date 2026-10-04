@@ -47,13 +47,31 @@ def http_client():
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 
+def _delete_by_pattern(pattern: str) -> None:
+    keys = redis_client.keys(pattern)
+    if keys:
+        redis_client.delete(*keys)
+
+
 @pytest.fixture(autouse=True)
 def clean_test_key():
-    """Delete the test cache key before and after each test for a clean slate."""
+    """Delete the test cache key, plus any rate-limit/budget counters, before
+    and after each test for a clean slate.
+
+    Without clearing the rate-limit/budget keys, the per-IP and global
+    counters (shared across all tests in this file, since they all come from
+    the same test client) would accumulate across tests and could trip the
+    real rate limiter or budget cap, making these tests flaky depending on
+    run order/count.
+    """
     key = make_cache_key(TEST_INPUT)
     redis_client.delete(key)
+    _delete_by_pattern("biosignalfoundry:ratelimit:*")
+    _delete_by_pattern("biosignalfoundry:budget:*")
     yield
     redis_client.delete(key)
+    _delete_by_pattern("biosignalfoundry:ratelimit:*")
+    _delete_by_pattern("biosignalfoundry:budget:*")
 
 
 def parse_sse_result(text: str) -> dict | None:
@@ -160,7 +178,9 @@ async def test_cached_payload_has_correct_shape(http_client):
     ):
         async with http_client as client:
             await client.post("/analyze", json={"user_input": TEST_INPUT})
-            cached_response = await client.post("/analyze", json={"user_input": TEST_INPUT})
+            cached_response = await client.post(
+                "/analyze", json={"user_input": TEST_INPUT}
+            )
 
     event = parse_sse_result(cached_response.text)
     assert event is not None, "Expected a 'result' SSE event in the cached response"

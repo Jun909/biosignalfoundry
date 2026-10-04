@@ -1,10 +1,12 @@
 import json
 
+import structlog
 from alpha_vantage.alphaintelligence import AlphaIntelligence
 from alpha_vantage.econindicators import EconIndicators
 from alpha_vantage.fundamentaldata import FundamentalData
 from alpha_vantage.techindicators import TechIndicators
 from alpha_vantage.timeseries import TimeSeries
+from redis.exceptions import RedisError
 
 from config import (REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE,
                     REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE_ERROR)
@@ -12,12 +14,14 @@ from src.core.redis_client import redis_client
 
 from .base import BaseClient
 
+logger = structlog.get_logger()
 
-class AlphaVintageAPIClient(BaseClient):
+
+class AlphaVantageAPIClient(BaseClient):
     """
-    Thin Python wrapper for AlphaVintageAPIClient. Converts SDK objects to plain
+    Thin Python wrapper for AlphaVantageAPIClient. Converts SDK objects to plain
     dictionaries and returns metadata in a JSON-friendly structure.
-    AlphaVintage takes in ticker as parameter for most functions.
+    AlphaVantage takes in ticker as parameter for most functions.
     Example of ticker: "AAPL", "GOOGL", "MSFT", "AMZN" etc
     """
 
@@ -27,7 +31,7 @@ class AlphaVintageAPIClient(BaseClient):
         self.client_alpha_intelligence = AlphaIntelligence(key=api_key)
         self.client_econ_indicators = EconIndicators(key=api_key)
         self.client_fundamental_data = FundamentalData(key=api_key)
-        self.provider = "alphavintage"
+        self.provider = "alphavantage"
 
     def get_daily(self, ticker: str, outputsize: str = "compact"):
         return self._call(
@@ -1483,7 +1487,11 @@ class AlphaVintageAPIClient(BaseClient):
 
     def get_income_statement_annual(self, ticker: str):
         cache_key = f"alphavantage:get_income_statement_annual:{ticker}"
-        cache_data = redis_client.get(cache_key)
+        try:
+            cache_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cache_data = None
         if cache_data:
             return json.loads(cache_data)  # type: ignore
 
@@ -1499,7 +1507,10 @@ class AlphaVintageAPIClient(BaseClient):
             if result.get("ok")
             else REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE_ERROR
         )
-        redis_client.setex(cache_key, ttl, json.dumps(result))
+        try:
+            redis_client.setex(cache_key, ttl, json.dumps(result))
+        except RedisError as e:
+            logger.warning("cache write failed, skipping cache", error=str(e))
 
         return result
 

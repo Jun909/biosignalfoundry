@@ -1,6 +1,8 @@
 """
 Record a paper trading signal: run the agent for a ticker,
-fetch today's entry price, and append to the signal log.
+fetch today's entry price, and upsert it into the paper_trades table.
+Re-running for the same ticker on the same day (and system version)
+replaces that day's signal instead of creating a duplicate.
 
 Usage:
     uv run python scripts/record_signal.py            # run all tickers in WATCHLIST
@@ -10,10 +12,9 @@ Usage:
 
 import argparse
 import asyncio
-import json
 import sys
-import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 # Ensure project root is on the path when run directly
@@ -25,9 +26,11 @@ load_dotenv()
 
 from langchain.messages import HumanMessage
 
-from src.backtesting.price_loader import load_prices, nearest_price_backward
-from src.backtesting.types import DecisionLabel
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
+from src.core.db import SessionLocal, engine
+from src.evaluation.price_loader import load_prices, nearest_price_backward
+from src.evaluation.repository import upsert_signal
+from src.evaluation.types import DecisionLabel
 
 DECISION_MAP: dict[str, DecisionLabel] = {
     "buy": DecisionLabel.BUY,
@@ -43,35 +46,22 @@ SYSTEM_VERSION = "v1.0"
 # Fixed watchlist for unbiased weekly coverage.
 # Edit this list to add/remove tickers; run with no positional argument to process all of them.
 WATCHLIST: list[str] = [
-    "AMGN",   # Amgen — large-cap benchmark
-    "GILD",   # Gilead Sciences
-    "REGN",   # Regeneron
-    "VRTX",   # Vertex Pharmaceuticals
-    "BIIB",   # Biogen
-    "ALNY",   # Alnylam — RNA therapeutics
-    "SRPT",   # Sarepta Therapeutics
-    "BMRN",   # BioMarin Pharmaceutical
-    "IONS",   # Ionis Pharmaceuticals
-    "EXEL",   # Exelixis
-    "MRNA",   # Moderna
-    "HALO",   # Halozyme Therapeutics
-    "ACAD",   # ACADIA Pharmaceuticals
-    "RARE",   # Ultragenyx
-    "PTGX",   # Protagonist Therapeutics
+    "AMGN",  # Amgen — large-cap benchmark
+    "GILD",  # Gilead Sciences
+    "REGN",  # Regeneron
+    "VRTX",  # Vertex Pharmaceuticals
+    "BIIB",  # Biogen
+    "ALNY",  # Alnylam — RNA therapeutics
+    "SRPT",  # Sarepta Therapeutics
+    "BMRN",  # BioMarin Pharmaceutical
+    "IONS",  # Ionis Pharmaceuticals
+    "EXEL",  # Exelixis
+    "MRNA",  # Moderna
+    "HALO",  # Halozyme Therapeutics
+    "ACAD",  # ACADIA Pharmaceuticals
+    "RARE",  # Ultragenyx
+    "PTGX",  # Protagonist Therapeutics
 ]
-
-LOG_PATH = Path(__file__).resolve().parents[1] / "data" / "paper_trades.json"
-
-
-def load_log() -> list[dict]:
-    if not LOG_PATH.exists():
-        return []
-    return json.loads(LOG_PATH.read_text())
-
-
-def save_log(records: list[dict]) -> None:
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    LOG_PATH.write_text(json.dumps(records, indent=2, default=str))
 
 
 async def get_decision(ticker: str) -> BioSignalFoundryOutput:
@@ -87,10 +77,10 @@ async def get_decision(ticker: str) -> BioSignalFoundryOutput:
     return output
 
 
-def record_one(ticker: str, holding_days: int, records: list[dict]) -> None:
+async def record_one(ticker: str, holding_days: int) -> None:
     signal_date = date.today()
 
-    output = asyncio.run(get_decision(ticker))
+    output = await get_decision(ticker)
     decision = DECISION_MAP.get(output.decision.strip().lower())
     if decision is None:
         raise ValueError(
@@ -107,39 +97,39 @@ def record_one(ticker: str, holding_days: int, records: list[dict]) -> None:
         )
 
     exit_date = signal_date + timedelta(days=holding_days)
+    confidence = (Decimal(output.confidence) / 100).quantize(Decimal("0.01"))
 
-    record = {
-        "id": str(uuid.uuid4())[:8],
-        "system_version": SYSTEM_VERSION,
-        "ticker": ticker,
-        "signal_date": signal_date.isoformat(),
-        "exit_date": exit_date.isoformat(),
-        "holding_days": holding_days,
-        "decision": str(decision),
-        "confidence": round(output.confidence / 100, 2),
-        "rationale": output.reasoning,
-        "entry_price": entry_price,
-        "recorded_at": datetime.now(timezone.utc).isoformat(),
-        "outcome": None,  # filled in by evaluate_signals.py once exit_date is reached
-    }
-
-    records.append(record)
+    values = dict(
+        system_version=SYSTEM_VERSION,
+        ticker=ticker,
+        signal_date=signal_date,
+        exit_date=exit_date,
+        holding_days=holding_days,
+        decision=decision,
+        confidence=confidence,
+        rationale=output.reasoning,
+        entry_price=Decimal(str(round(entry_price, 4))),
+    )
+    async with SessionLocal() as session:
+        inserted = await upsert_signal(session, values)
+        await session.commit()
 
     width = 55
     print(f"\n{'=' * width}")
-    print(f"  Signal recorded for {ticker}")
+    print(
+        f"  Signal {'recorded' if inserted else 'updated (same-day re-run)'} for {ticker}"
+    )
     print(f"  Version  : {SYSTEM_VERSION}")
     print(f"  Date     : {signal_date}  (entry)")
     print(f"  Exit     : {exit_date}  ({holding_days} days later)")
     print(f"  Decision : {decision}  (confidence: {output.confidence}%)")
     print(f"  Entry    : ${entry_price:.2f}")
-    print(f"  Log      : {LOG_PATH}")
     print(f"{'=' * width}")
     print(f"  Run evaluate_signals.py on or after {exit_date} to see the result.")
     print(f"{'=' * width}\n")
 
 
-def main() -> None:
+async def main() -> None:
     parser = argparse.ArgumentParser(description="Record a paper trading signal")
     parser.add_argument(
         "ticker",
@@ -156,23 +146,21 @@ def main() -> None:
     args = parser.parse_args()
 
     tickers = [args.ticker.upper()] if args.ticker else WATCHLIST
-    holding_days = args.holding_days
-
-    records = load_log()
     errors: list[tuple[str, str]] = []
 
-    for ticker in tickers:
-        try:
-            record_one(ticker, holding_days, records)
-        except Exception as exc:
-            print(f"\n  [!] {ticker} failed: {exc}")
-            errors.append((ticker, str(exc)))
-
-    save_log(records)
+    try:
+        for ticker in tickers:
+            try:
+                await record_one(ticker, args.holding_days)
+            except Exception as exc:
+                print(f"\n  [!] {ticker} failed: {exc}")
+                errors.append((ticker, str(exc)))
+    finally:
+        await engine.dispose()
 
     if errors:
         print(f"\n  {len(errors)} ticker(s) failed: {', '.join(t for t, _ in errors)}")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

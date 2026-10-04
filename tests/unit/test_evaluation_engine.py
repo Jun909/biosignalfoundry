@@ -19,7 +19,7 @@ sys.modules.setdefault("config", _config_stub)
 
 for _mod in (
     "src.data_providers",
-    "src.data_providers.alphavintage",
+    "src.data_providers.alphavantage",
     "src.data_providers.finnhub",
     "src.data_providers.fred",
     "src.data_providers.massive",
@@ -34,8 +34,8 @@ _marketstack_stub = ModuleType("src.data_providers.marketstack")
 _marketstack_stub.MarketStackAPIClient = object  # type: ignore[attr-defined]
 sys.modules["src.data_providers.marketstack"] = _marketstack_stub
 
-from src.backtesting.engine import run
-from src.backtesting.types import BacktestRequest, DecisionLabel, Signal
+from src.evaluation.engine import run
+from src.evaluation.types import BacktestRequest, DecisionLabel, Signal
 
 # ---------------------------------------------------------------------------
 # Fake price map: every weekday from 2024-01-01 to 2024-03-31
@@ -103,7 +103,7 @@ REQUEST = BacktestRequest(
 
 
 def test_backtest_engine():
-    with patch("src.backtesting.engine.load_prices", return_value=MOCK_PRICES):
+    with patch("src.evaluation.engine.load_prices", return_value=MOCK_PRICES):
         result = run(REQUEST, SIGNALS)
 
     print(f"\n{'='*55}")

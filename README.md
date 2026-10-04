@@ -88,26 +88,33 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
 ## Planned Roadmap
 
 ### Phase 1 — Stabilization
-* Persistent storage of decisions and signals (PostgreSQL + Alembic) — also unblocks
-  the automated paper trading loop in Phase 2
+* ~~Persistent storage of decisions and signals (PostgreSQL + Alembic) — also unblocks
+  the automated paper trading loop in Phase 2~~ ✅ Done — paper trades live in the
+  `paper_trades` table (`src/evaluation/models.py`, migrations in `alembic/`); re-running
+  a signal for the same ticker/day/version updates it instead of duplicating
 * ~~Integration test suite and CI/CD pipeline~~ ✅ Done — see `.github/workflows/test.yml`
-* Health and readiness endpoints
-* Rate limiting and abuse/cost control on `/analyze` (currently unauthenticated, and
-  a cache miss triggers a paid LLM run)
-* Fail-fast config validation at startup (e.g. `pydantic-settings`) instead of silent
-  failures on missing or misspelled env vars
-* Graceful Redis degradation — a cache outage should fall back to a cache miss, not
-  a 500
-* Frontend test suite (Vitest + React Testing Library) — currently no tests on
-  the UI at all
-* Hardening: lint/format/type-check CI job, fix the `alphavintage` → `alphavantage`
-  naming, rename `src/backtesting/` → `src/evaluation/` to match the "no classic
-  backtesting" design decision below
+* ~~Health and readiness endpoints~~ ✅ Done — see `GET /health` and `GET /ready` in `app.py`
+* ~~Rate limiting and abuse/cost control on `/analyze` (currently unauthenticated, and
+  a cache miss triggers a paid LLM run)~~ ✅ Done — per-IP rate limits + a global daily
+  budget cap on non-cached runs, see `src/core/rate_limiter.py` and `POST /analyze` in
+  `app.py`
+* ~~Fail-fast config validation at startup (e.g. `pydantic-settings`) instead of silent
+  failures on missing or misspelled env vars~~ ✅ Done — see `Settings` in `config.py`
+* ~~Graceful Redis degradation — a cache outage should fall back to a cache miss, not
+  a 500~~ ✅ Done — `/analyze` treats Redis read/write failures as a cache miss/skip
+* ~~Frontend test suite (Vitest + React Testing Library) — currently no tests on
+  the UI at all~~ ✅ Done — see `ui/src/App.test.tsx` and
+  `ui/src/api/biosignalfoundry.test.ts`, run with `npm run test` in `ui/`
+* ~~Hardening: lint/format/type-check CI job~~ ✅ Done (frontend) — `.github/workflows/test.yml`
+  now runs `npm run lint`, `npm run build`, `npm run test`; Python `black`/`isort`/type-check
+  still not enforced in CI, ~~fix the `alphavintage` → `alphavantage`
+  naming~~ ✅ Done, ~~rename `src/backtesting/` → `src/evaluation/` to match the "no classic
+  backtesting" design decision below~~ ✅ Done
 
 ### Phase 2 — Signal Completeness
 * Wire remaining subagents: clinical (OpenFDA), macro (FRED), sentiment (Finnhub)
 * Paper trading loop: record decisions and track returns over time (manual today via
-  `scripts/record_signal.py` / `scripts/evaluate_signals.py`)
+  `scripts/record_signal.py` / `scripts/evaluate_signals.py`, both backed by Postgres)
 * Automate the paper trading loop to run on a schedule instead of by hand
   (mechanism TBD; depends on Phase 1's persistent storage)
 * Deterministic ticker resolution (e.g. AlphaVantage symbol search) ahead of agent
@@ -144,6 +151,20 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
   losses included
 * Surface the signal-level reasoning breakdown in the UI, not just the final
   decision text
+
+## Beyond MVP / Long-Term Vision
+Directional ideas for after Phases 1–6 are done — not scoped or scheduled yet,
+kept separate from the roadmap above on purpose.
+
+* **User accounts & personal dashboards** — auth, saved watchlists, per-user
+  decision history
+* **Automated monitoring & notifications** — scheduled/event-driven checks over
+  a user's watchlist, pushed via email
+* **AI with memory** — recommendations informed by a user's history and
+  preferences, not just a single stateless query (depends on user accounts
+  existing first)
+* **Discovery / news feed** — surfacing new biotech companies and sector news,
+  not just answering direct queries
 
 ## Disclaimer
 Nothing in this repository constitutes to financial advice or a recommendation to trade securities.

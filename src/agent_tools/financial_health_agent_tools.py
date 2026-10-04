@@ -4,7 +4,7 @@ import structlog
 from langchain.tools import tool
 
 from config import ALPHAVANTAGE_API_KEY, FINNHUB_API_KEY
-from src.data_providers import AlphaVintageAPIClient
+from src.data_providers import AlphaVantageAPIClient
 from src.data_providers.finnhub import FinnHubAPIClient
 
 # from src.data_providers.fred import FredAPIClient
@@ -12,11 +12,11 @@ from src.data_providers.finnhub import FinnHubAPIClient
 # from src.data_providers.massive import MassiveAPIClient
 # from src.data_providers.openfda import (Dataset, OpenFDAAPIClient, Query,
 #                                         SearchClause)
-# from data_providers import AlphaVintageAPIClient
+# from data_providers import AlphaVantageAPIClient
 
 logger = structlog.get_logger()
 
-avclient = AlphaVintageAPIClient(api_key=ALPHAVANTAGE_API_KEY or "")
+avclient = AlphaVantageAPIClient(api_key=ALPHAVANTAGE_API_KEY or "")
 finnclient = FinnHubAPIClient(api_key=FINNHUB_API_KEY or "")
 
 REDUNDANT_FIELDS = {"costofGoodsAndServicesSold"}

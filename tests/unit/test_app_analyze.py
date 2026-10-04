@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 import app as app_module
 from app import app
@@ -61,6 +62,21 @@ def parse_sse_events(text: str) -> list[dict]:
 def http_client():
     """Async HTTPX client wired to the FastAPI app."""
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+@pytest.fixture(autouse=True)
+def _bypass_rate_limit_and_budget():
+    """These tests exercise caching/agent behavior, not rate limiting or the
+    daily budget cap — those get their own tests in test_app_rate_limit.py.
+    Without this, every request here would hit the real (unmocked)
+    check_rate_limit/check_and_consume_daily_budget, which try real Redis
+    I/O — exactly what tests/unit/ must not depend on.
+    """
+    with (
+        patch.object(app_module, "check_rate_limit", return_value=(True, 0)),
+        patch.object(app_module, "check_and_consume_daily_budget", return_value=True),
+    ):
+        yield
 
 
 # ---------------------------------------------------------------------------
@@ -281,3 +297,76 @@ def test_input_hash_normalizes_whitespace_and_case():
     assert make_hash("NVDA") == make_hash("  NVDA  ")
     assert make_hash("NVDA") == make_hash("nvda")
     assert make_hash("  NVDA  ") == make_hash("nvda")
+
+
+# ---------------------------------------------------------------------------
+# Test 9 — Redis read outage falls back to a cache miss instead of 500ing
+# ---------------------------------------------------------------------------
+
+
+async def test_redis_read_failure_falls_back_to_cache_miss(http_client):
+    """
+    If redis_client.get raises (Redis unreachable), /analyze must not 500.
+    It should treat the request as a cache miss and still run the agent,
+    since the cache is an optimization, not a hard dependency.
+    """
+    with (
+        patch.object(
+            app_module.redis_client, "get", side_effect=RedisConnectionError("down")
+        ),
+        patch.object(app_module.redis_client, "setex"),
+        patch.object(
+            app_module.biosignalfoundry,
+            "ainvoke",
+            new_callable=AsyncMock,
+            return_value={"structured_response": STRUCTURED_RESULT},
+        ) as mock_ainvoke,
+    ):
+        async with http_client as client:
+            response = await client.post("/analyze", json={"user_input": "NVDA"})
+
+    assert response.status_code == 200
+    mock_ainvoke.assert_called_once()
+
+    events = parse_sse_events(response.text)
+    result_events = [e for e in events if e.get("type") == "result"]
+    assert len(result_events) == 1
+    assert result_events[0]["data"]["ticker"] == "NVDA"
+
+
+# ---------------------------------------------------------------------------
+# Test 10 — Redis write outage still delivers the result to the user
+# ---------------------------------------------------------------------------
+
+
+async def test_redis_write_failure_still_emits_result(http_client):
+    """
+    If redis_client.setex raises after a successful agent run, the user must
+    still receive the 'result' event — a caching failure must not be reported
+    as an agent failure.
+    """
+    with (
+        patch.object(app_module.redis_client, "get", return_value=None),
+        patch.object(
+            app_module.redis_client,
+            "setex",
+            side_effect=RedisConnectionError("down"),
+        ),
+        patch.object(
+            app_module.biosignalfoundry,
+            "ainvoke",
+            new_callable=AsyncMock,
+            return_value={"structured_response": STRUCTURED_RESULT},
+        ),
+    ):
+        async with http_client as client:
+            response = await client.post("/analyze", json={"user_input": "NVDA"})
+
+    assert response.status_code == 200
+
+    events = parse_sse_events(response.text)
+    result_events = [e for e in events if e.get("type") == "result"]
+    error_events = [e for e in events if e.get("type") == "error"]
+    assert len(result_events) == 1
+    assert result_events[0]["data"]["ticker"] == "NVDA"
+    assert len(error_events) == 0

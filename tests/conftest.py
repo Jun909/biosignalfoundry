@@ -8,9 +8,26 @@ Why stubs here instead of in each test file:
   a parallel import triggered by another test could beat us to it.
 """
 
+import os
 import sys
 from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock
+
+# ---------------------------------------------------------------------------
+# config env var fallbacks
+#
+# config.py's Settings requires ALPHAVANTAGE_API_KEY, FINNHUB_API_KEY, and
+# LLM_PROVIDER at import time (fail-fast validation — see config.py). Unit
+# tests must not depend on real secrets being present, so safe dummy values
+# are filled in before anything imports config. setdefault() so a real .env
+# (e.g. in local dev) still wins over these.
+# ---------------------------------------------------------------------------
+os.environ.setdefault("ALPHAVANTAGE_API_KEY", "test-alphavantage-key")
+os.environ.setdefault("FINNHUB_API_KEY", "test-finnhub-key")
+os.environ.setdefault("LLM_PROVIDER", "ollama")
+os.environ.setdefault("POSTGRES_USER", "test")
+os.environ.setdefault("POSTGRES_PASSWORD", "test")
+os.environ.setdefault("POSTGRES_DB", "test")
 
 # ---------------------------------------------------------------------------
 # llm_provider stub

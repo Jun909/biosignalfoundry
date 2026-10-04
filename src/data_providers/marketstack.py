@@ -4,6 +4,8 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 import requests
+import structlog
+from redis.exceptions import RedisError
 
 from config import REDIS_CACHE_TTL_SECONDS_MARKETSTACK
 from src.core.redis_client import redis_client
@@ -17,6 +19,8 @@ from src.core.redis_client import redis_client
 #     password=os.getenv("REDIS_PASSWORD"),
 #     decode_responses=True,
 # )
+
+logger = structlog.get_logger()
 
 
 class MarketStackAPIClient:
@@ -63,7 +67,11 @@ class MarketStackAPIClient:
             cache_key = f"marketstack:eod:{ticker}:{date_from}:{date_to}"
         else:
             cache_key = f"marketstack:eod:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -82,9 +90,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -92,7 +103,11 @@ class MarketStackAPIClient:
         endpoint = "end_of_day_latest"
 
         cache_key = f"marketstack:eod_latest:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -107,9 +122,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
         return self._wrap_response(data, ticker, endpoint)
 
@@ -117,7 +135,11 @@ class MarketStackAPIClient:
         endpoint = "end_of_day_specific_date"
 
         cache_key = f"marketstack:eod_specific_date:{ticker}:{date}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -131,9 +153,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -146,7 +171,11 @@ class MarketStackAPIClient:
             cache_key = f"marketstack:splits_data:{ticker}:{date_from}:{date_to}"
         else:
             cache_key = f"marketstack:splits_data:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -165,9 +194,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -180,7 +212,11 @@ class MarketStackAPIClient:
             cache_key = f"marketstack:dividends_data:{ticker}:{date_from}:{date_to}"
         else:
             cache_key = f"marketstack:dividends_data:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -199,9 +235,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -209,7 +248,11 @@ class MarketStackAPIClient:
         endpoint = "ticker_information"
 
         cache_key = f"marketstack:ticker_information:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -223,9 +266,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -233,7 +279,11 @@ class MarketStackAPIClient:
         endpoint = "end_of_day_specific_ticker"
 
         cache_key = f"marketstack:eod_specific_ticker:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -246,9 +296,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -261,7 +314,11 @@ class MarketStackAPIClient:
             cache_key = f"marketstack:splits_factor_specific_ticker:{ticker}:{date_from}:{date_to}"
         else:
             cache_key = f"marketstack:splits_factor_specific_ticker:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
         else:
@@ -277,9 +334,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
             return self._wrap_response(data, ticker, endpoint)
 
     def dividends_data_specific_ticker(
@@ -291,7 +351,11 @@ class MarketStackAPIClient:
             cache_key = f"marketstack:dividends_data_specific_ticker:{ticker}:{date_from}:{date_to}"
         else:
             cache_key = f"marketstack:dividends_data_specific_ticker:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
         else:
@@ -307,16 +371,23 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
             return self._wrap_response(data, ticker, endpoint)
 
     def eod_specific_ticker_specific_date(self, ticker: str, date: str):
         endpoint = "eod_specific_ticker_specific_date"
 
         cache_key = f"marketstack:eod_specific_ticker_specific_date:{ticker}:{date}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -329,9 +400,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -339,7 +413,11 @@ class MarketStackAPIClient:
         endpoint = "eod_latest_data_specific_ticker"
 
         cache_key = f"marketstack:eod_latest_data_specific_ticker:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), ticker, endpoint)  # type: ignore
@@ -352,9 +430,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, ticker, endpoint)
 
@@ -362,7 +443,11 @@ class MarketStackAPIClient:
         endpoint = "tickers_list"
 
         cache_key = f"marketstack:tickers_list"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -375,9 +460,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -385,7 +473,11 @@ class MarketStackAPIClient:
         endpoint = "exchanges"
 
         cache_key = f"marketstack:exchanges"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -398,9 +490,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -412,7 +507,11 @@ class MarketStackAPIClient:
         endpoint = "specific_stock_exchange_info"
 
         cache_key = f"marketstack:specific_stock_exchange_info:{mic}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -425,9 +524,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -439,7 +541,11 @@ class MarketStackAPIClient:
         endpoint = "specific_stock_exchange_ticker"
 
         cache_key = f"marketstack:specific_stock_exchange_ticker:{mic}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -452,9 +558,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -478,7 +587,11 @@ class MarketStackAPIClient:
             cache_key = f"marketstack:eod_data_specific_stock_exchange:{mic}:{ticker}:{date_from}:{date_to}"
         else:
             cache_key = f"marketstack:eod_data_specific_stock_exchange:{mic}:{ticker}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -496,9 +609,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -513,7 +629,11 @@ class MarketStackAPIClient:
         cache_key = (
             f"marketstack:eod_data_latest_date_specific_stock_exchange:{mic}:{ticker}"
         )
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -527,9 +647,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -545,7 +668,11 @@ class MarketStackAPIClient:
         endpoint = "eod_data_specific_stock_exchange_specific_date"
 
         cache_key = f"marketstack:eod_data_specific_stock_exchange_specific_date:{mic}:{ticker}:{date}"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -559,9 +686,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -569,7 +699,11 @@ class MarketStackAPIClient:
         endpoint = "currencies"
 
         cache_key = f"marketstack:currencies"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             return self._wrap_response(json.loads(cached_data), "", endpoint)  # type: ignore
@@ -582,9 +716,12 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
 
@@ -592,7 +729,11 @@ class MarketStackAPIClient:
         endpoint = "timezones"
 
         cache_key = f"marketstack:timezones"
-        cached_data = redis_client.get(cache_key)
+        try:
+            cached_data = redis_client.get(cache_key)
+        except RedisError as e:
+            logger.warning("cache read failed, treating as cache miss", error=str(e))
+            cached_data = None
 
         if cached_data:
             print(cached_data)
@@ -606,8 +747,11 @@ class MarketStackAPIClient:
             response.raise_for_status()
             data = response.json()
 
-            redis_client.setex(
-                cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
-            )
+            try:
+                redis_client.setex(
+                    cache_key, REDIS_CACHE_TTL_SECONDS_MARKETSTACK, json.dumps(data)
+                )
+            except RedisError as e:
+                logger.warning("cache write failed, skipping cache", error=str(e))
 
             return self._wrap_response(data, "", endpoint)
