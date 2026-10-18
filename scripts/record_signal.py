@@ -28,6 +28,7 @@ from langchain.messages import HumanMessage
 
 from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
 from src.core.db import SessionLocal, engine
+from src.core.versioning import system_version
 from src.evaluation.price_loader import load_prices, nearest_price_backward
 from src.evaluation.repository import upsert_signal
 from src.evaluation.types import DecisionLabel
@@ -39,9 +40,9 @@ DECISION_MAP: dict[str, DecisionLabel] = {
     "avoid": DecisionLabel.AVOID,
 }
 
-# Bump this manually whenever you add/remove agents or tools so you can
-# compare performance across system versions later.
-SYSTEM_VERSION = "v1.0"
+# Derived from git SHA + prompt hash (see src/core/versioning.py), computed once
+# per run so every ticker in a batch shares the same label.
+SYSTEM_VERSION = system_version()
 
 # Fixed watchlist for unbiased weekly coverage.
 # Edit this list to add/remove tickers; run with no positional argument to process all of them.

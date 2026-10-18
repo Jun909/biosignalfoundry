@@ -122,8 +122,11 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
 * Reject unresolvable or non-biotech queries before invoking the agent — a ticker
   + sector gate (Finnhub `finnhubIndustry`) ahead of the paid LLM call, doubling as
   cost control
-* System/prompt versioning derived automatically (git SHA + prompt hash) instead of
-  the manually-bumped `SYSTEM_VERSION` constant
+* ~~System/prompt versioning derived automatically (git SHA + prompt hash) instead of
+  the manually-bumped `SYSTEM_VERSION` constant~~ ✅ Done — see `src/core/versioning.py`;
+  paper trades are labelled `<git sha>-<prompt hash>` (plus `-dirty` for uncommitted
+  changes) and `record_signal.py` uses it automatically. Rows recorded before this
+  carry the legacy `v1.0` label
 * Benchmark comparison in evaluation (always-BUY, random, sector return) so paper
   trading accuracy is measured against a baseline instead of read in isolation
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning

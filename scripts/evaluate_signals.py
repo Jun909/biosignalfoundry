@@ -5,9 +5,9 @@ A signal is mature when today >= its exit_date.
 Evaluations are written back to the same row so they only run once.
 
 Usage:
-    python3 scripts/evaluate_signals.py               # evaluate all matured signals
-    python3 scripts/evaluate_signals.py --ticker MRNA # filter by ticker
-    python3 scripts/evaluate_signals.py --all         # re-evaluate already evaluated signals
+    uv run python scripts/evaluate_signals.py               # evaluate all matured signals
+    uv run python scripts/evaluate_signals.py --ticker MRNA # filter by ticker
+    uv run python scripts/evaluate_signals.py --all         # re-evaluate already evaluated signals
 """
 
 import argparse
