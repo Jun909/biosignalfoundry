@@ -68,6 +68,7 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
         "analyze request received", user_input=request.user_input, client_ip=client_ip
     )
 
+    # check rate limit
     try:
         allowed, retry_after = check_rate_limit(
             client_ip, settings.rate_limit_per_minute, settings.rate_limit_per_day
@@ -83,6 +84,7 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
             headers={"Retry-After": str(retry_after)},
         )
 
+    # check if the user input resolves to a valid biotech ticker
     try:
         resolved = await resolve_biotech_ticker(request.user_input)
     except TickerRejected as e:
@@ -113,6 +115,7 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
 
         return StreamingResponse(cached_stream(), media_type="text/event-stream")
 
+    # check daily budget cap
     try:
         under_budget = check_and_consume_daily_budget(
             settings.daily_analysis_budget_cap
@@ -130,6 +133,7 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
     queue: asyncio.Queue = asyncio.Queue()
     callback = StreamingProgressCallback(queue)
 
+    # actually call the real agent
     async def run_agent():
         try:
             result = await biosignalfoundry.ainvoke(

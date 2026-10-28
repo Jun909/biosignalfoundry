@@ -122,9 +122,9 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
   company name or ticker, matched against the SEC company list bundled with
   `edgartools` (offline, no API quota). The agent now only ever receives
   `Analyze <TICKER>`, and the `/analyze` cache is keyed on the resolved ticker
-* ~~Reject unresolvable or non-biotech queries before invoking the agent — a ticker
-  + sector gate (Finnhub `finnhubIndustry`) ahead of the paid LLM call, doubling as
-  cost control~~ ✅ Done — rejected queries return HTTP 422 before the cache, daily
+* ~~Reject unresolvable or non-biotech queries before invoking the agent~~ — ~~a ticker~~
+  + ~~sector gate (Finnhub `finnhubIndustry`) ahead of the paid LLM call, doubling as~~
+  ~~cost control~~ ✅ Done — rejected queries return HTTP 422 before the cache, daily
   budget or agent are touched; a Finnhub outage returns 503 instead of guessing
 * ~~System/prompt versioning derived automatically (git SHA + prompt hash) instead of
   the manually-bumped `SYSTEM_VERSION` constant~~ ✅ Done — see `src/core/versioning.py`;
