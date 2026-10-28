@@ -19,6 +19,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 import app as app_module
 from app import app
 from src.biosignalfoundry import BioSignalFoundryOutput
+from src.core.ticker_gate import ResolvedTicker
 
 STRUCTURED_RESULT = BioSignalFoundryOutput(
     ticker="NVDA",
@@ -26,6 +27,21 @@ STRUCTURED_RESULT = BioSignalFoundryOutput(
     confidence=85,
     reasoning="Strong pipeline",
 )
+
+
+@pytest.fixture(autouse=True)
+def _resolve_to_nvda():
+    """Gate behaviour is covered in test_ticker_gate.py / test_app_analyze.py."""
+    resolved = ResolvedTicker(
+        ticker="NVDA", company_name="NVIDIA CORP", industry="Biotechnology"
+    )
+    with patch.object(
+        app_module,
+        "resolve_biotech_ticker",
+        new_callable=AsyncMock,
+        return_value=resolved,
+    ):
+        yield
 
 
 @pytest.fixture

@@ -85,6 +85,10 @@ class FinnHubAPIClient(BaseClient):
         result = self._call(
             self.client, self.provider, "company_profile2", symbol=ticker
         )
+        # _call swallows API errors into {"ok": False}; caching one would make a
+        # transient failure (e.g. a 429) look like a real answer for a full day.
+        if not result.get("ok"):
+            return result
         try:
             redis_client.setex(
                 cache_key, REDIS_CACHE_TTL_SECONDS_FINNHUB, json.dumps(result)

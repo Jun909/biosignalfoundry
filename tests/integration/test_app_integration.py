@@ -14,7 +14,6 @@ Run with:  pytest tests/integration/
 Requires:  docker run -p 6379:6379 redis:7
 """
 
-import hashlib
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -25,8 +24,9 @@ import app as app_module
 from app import app
 from src.biosignalfoundry import BioSignalFoundryOutput
 from src.core.redis_client import redis_client
+from src.core.ticker_gate import ResolvedTicker
 
-TEST_INPUT = "integration test analyze NVDA"
+TEST_INPUT = "NVDA"
 
 STRUCTURED_RESULT = BioSignalFoundryOutput(
     ticker="NVDA",
@@ -36,10 +36,25 @@ STRUCTURED_RESULT = BioSignalFoundryOutput(
 )
 
 
-def make_cache_key(user_input: str) -> str:
-    """Mirrors the hashing logic in app.py exactly."""
-    h = hashlib.sha256(user_input.strip().lower().encode()).hexdigest()
-    return f"biosignalfoundry:analyze:{h}"
+def make_cache_key(ticker: str) -> str:
+    """Mirrors the cache key logic in app.py exactly (keyed on resolved ticker)."""
+    return f"biosignalfoundry:analyze:{ticker}"
+
+
+@pytest.fixture(autouse=True)
+def _resolve_to_nvda():
+    """Redis is real here; the ticker gate (SEC table + Finnhub) is not what
+    these tests cover, so it resolves straight to NVDA."""
+    resolved = ResolvedTicker(
+        ticker="NVDA", company_name="NVIDIA CORP", industry="Biotechnology"
+    )
+    with patch.object(
+        app_module,
+        "resolve_biotech_ticker",
+        new_callable=AsyncMock,
+        return_value=resolved,
+    ):
+        yield
 
 
 @pytest.fixture
@@ -64,7 +79,7 @@ def clean_test_key():
     real rate limiter or budget cap, making these tests flaky depending on
     run order/count.
     """
-    key = make_cache_key(TEST_INPUT)
+    key = make_cache_key("NVDA")
     redis_client.delete(key)
     _delete_by_pattern("biosignalfoundry:ratelimit:*")
     _delete_by_pattern("biosignalfoundry:budget:*")
@@ -110,7 +125,7 @@ async def test_cache_miss_writes_result_to_redis(http_client):
 
     assert response.status_code == 200
 
-    key = make_cache_key(TEST_INPUT)
+    key = make_cache_key("NVDA")
     raw = redis_client.get(key)
     assert raw is not None, "app.py must write the result to Redis after a cache miss"
 

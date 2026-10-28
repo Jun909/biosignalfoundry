@@ -3,11 +3,14 @@ import { analyzeStock } from "./api/biosignalfoundry";
 import type { AnalysisResult } from "./api/biosignalfoundry";
 
 const SUGGESTIONS = [
-  "Should I invest in Moderna?",
-  "Analyze Eli Lilly and Co",
-  "Is Regeneron a good buy?",
-  "What's your view on CRISPR Therapeutics?",
+  "Moderna",
+  "Eli Lilly and Co",
+  "Regeneron",
+  "CRISPR Therapeutics",
 ];
+
+// Input is a single company name or ticker, not a sentence (see ticker resolution in README roadmap).
+const MAX_INPUT_LENGTH = 60;
 
 const DECISION_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
   BUY:   { bg: "bg-emerald-500/15", text: "text-emerald-400", dot: "bg-emerald-400" },
@@ -38,7 +41,8 @@ export default function App() {
   const hasShownNotification = useRef(false);
 
   async function handleSubmit(q: string) {
-    if (!q.trim() || loading) return;
+    q = q.trim();
+    if (!q || loading) return;
 
     if (!hasShownNotification.current) {
       hasShownNotification.current = true;
@@ -123,7 +127,11 @@ export default function App() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about any biotech stock..."
+                  placeholder="Company name or ticker (e.g. Moderna, MRNA)"
+                  aria-label="Biotech company name or ticker"
+                  maxLength={MAX_INPUT_LENGTH}
+                  autoComplete="off"
+                  spellCheck={false}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 pr-32 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:bg-white/8 transition-all duration-200"
                 />
                 <button
@@ -134,6 +142,9 @@ export default function App() {
                   ANALYZE
                 </button>
               </div>
+              <p className="text-zinc-600 text-xs mt-3">
+                Enter one biotech company name or stock ticker, not a full question.
+              </p>
             </form>
 
             <div>
