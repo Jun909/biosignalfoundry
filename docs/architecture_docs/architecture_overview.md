@@ -15,7 +15,7 @@ biosignalfoundry/
 ├── README.md                     # Project documentation
 ├── Dockerfile                    # Docker image definition
 ├── docker-compose.yml            # Docker services configuration (PostgreSQL, Redis)
-├── app.py                        # FastAPI application entry point (exposes /analyze endpoint)
+├── app.py                        # FastAPI application entry point (/analyze, /health, /ready)
 │
 ├── src/                          # Main application source code
 │   ├── __init__.py
@@ -43,10 +43,13 @@ biosignalfoundry/
 │   │   └── massive.py            # OHLCV aggregate bars via the massive SDK
 │   │
 │   ├── core/                     # Core utilities and infrastructure
-│   │   ├── redis_client.py       # Redis client for caching and state management
+│   │   ├── db.py                 # Async SQLAlchemy engine, SessionLocal, declarative Base
+│   │   ├── redis_client.py       # Shared Redis client (caching, rate limiting)
 │   │   ├── logging_config.py     # structlog configuration (JSON or coloured output)
-│   │   └── streaming_callback.py # callback for immediate frontend feedback
-│   │
+│   │   ├── rate_limiter.py       # Per-IP rate limits + global daily analysis budget (Redis)
+│   │   ├── streaming_callback.py # Callback pushing tool-progress events to the SSE stream
+│   │   ├── ticker_gate.py        # Deterministic company-name/ticker resolution + biotech gate
+│   │   └── versioning.py         # system_version label (git sha + prompt hash) for paper trades
 │   │
 │   ├── middleware/               # LangChain agent middleware
 │   │   ├── __init__.py
@@ -70,6 +73,7 @@ biosignalfoundry/
 │   ├── evaluate_signals.py       # Evaluates matured signals against actual exit prices
 │   └── import_paper_trades.py    # One-time import of the legacy JSON log into Postgres
 │
+├── alembic.ini                   # Alembic configuration
 ├── alembic/                      # Database migrations (Alembic, async)
 │   └── versions/                 # One file per schema change; apply with `alembic upgrade head`
 │
@@ -77,15 +81,7 @@ biosignalfoundry/
 │   ├── __init__.py
 │   ├── conftest.py                # Shared fixtures; stubs heavy deps (llm_provider, deepagents) via sys.modules
 │   ├── unit/                      # Mock-based tests, no live services
-│   │   ├── test_app_analyze.py
-│   │   ├── test_evaluation_engine.py
-│   │   ├── test_financial_health_tools.py
-│   │   └── test_streaming_callback.py
-│   └── integration/               # Tests that hit a real Redis instance
-│       ├── conftest.py
-│       ├── test_app_integration.py
-│       ├── test_paper_trades_db.py
-│       └── test_redis_cache.py
+│   └── integration/               # Tests that hit real Redis and Postgres
 │
 ├── docs/                         # Documentation
 │   ├── architecture_docs/        # Architecture and design documentation
@@ -109,7 +105,10 @@ biosignalfoundry/
 The core application code organized by functional domain.
 
 ### **`app.py`**
-FastAPI application entry point. Exposes a single `POST /analyze` endpoint that accepts a natural-language query, invokes the `biosignalfoundry` deep agent, and returns a structured `BioSignalFoundryOutput` (ticker, decision, confidence, reasoning).
+FastAPI application entry point (CORS origins come from `ALLOWED_ORIGINS`):
+- `POST /analyze`: accepts a company name or ticker (`user_input`, 1–2000 chars) and streams Server-Sent Events: `progress` events while tools run, then a `result` event carrying a structured `BioSignalFoundryOutput` (ticker, decision, confidence, reasoning). See *Request path* for the guard sequence in front of the agent.
+- `GET /health`: liveness; always returns `ok`.
+- `GET /ready`: readiness; pings Redis and returns 503 if it is unreachable.
 
 ### **`src/biosignalfoundry.py`**
 Defines the top-level `biosignalfoundry` agent using `deepagents.create_deep_agent`. Composes the `financial_health_subagent` and enforces a structured output schema (`BioSignalFoundryOutput`) via `AutoStrategy`.
@@ -137,10 +136,26 @@ Wrapper modules for external APIs. Each provider normalizes API responses into c
 - **massive.py**: OHLCV aggregate bars via the `massive` SDK
 
 ### **src/core/**
-Common utilities and infrastructure:
-- **redis_client.py**: Redis connection management, caching layer for API responses
-- **db.py**: Async SQLAlchemy engine, session factory (`SessionLocal`) and declarative `Base`, built from `Settings.database_url`
-- **logging_config.py**: `setup_logging()` configures structlog for the whole application. Outputs human-readable coloured logs in development and JSON lines in production (controlled by the `ENV` environment variable).
+Shared infrastructure used by `app.py`, the agents and the scripts. Nothing here calls an LLM.
+
+- **redis_client.py**: Module-level `redis_client` (`decode_responses=True`) built from `REDIS_HOST/PORT/DB` and `Settings.redis_password`. Used for the `/analyze` result cache, the rate limiter, the readiness probe, and the data-provider response caches.
+- **db.py**: Async SQLAlchemy `engine` (`pool_pre_ping=True`), `SessionLocal` (`expire_on_commit=False`) and declarative `Base`, built from `Settings.database_url` (asyncpg). `Base.metadata` is also what Alembic autogenerates against.
+- **logging_config.py**: `setup_logging()` configures structlog once for the whole application (idempotent). Coloured console output in development, JSON lines when `ENV=production`.
+- **rate_limiter.py**: Redis fixed-window counters (`INCR` + `EXPIRE NX` in one pipeline, so one round trip per check).
+  - `check_rate_limit(client_ip, per_minute, per_day) → (allowed, retry_after_seconds)`: per-IP limits.
+  - `check_and_consume_daily_budget(cap) → bool`: a global daily cap on uncached agent runs, to bound LLM spend.
+  - Fixed windows allow a burst across a window boundary; acceptable for abuse/cost control. Both functions raise `RedisError` and leave the fail-open/closed policy to the caller (`app.py` currently fails open).
+  - Limits come from `RATE_LIMIT_PER_MINUTE` (5), `RATE_LIMIT_PER_DAY` (50) and `DAILY_ANALYSIS_BUDGET_CAP` (500).
+- **ticker_gate.py**: `resolve_biotech_ticker(user_input) → ResolvedTicker(ticker, company_name, industry)`. Runs before any LLM call.
+  1. *Resolve*: a ticker-shaped input is looked up directly. Otherwise the normalized name is matched against the SEC company list bundled with `edgartools` (offline, Nasdaq/NYSE/CBOE only, at most 5 candidates).
+  2. *Gate*: every candidate's Finnhub `finnhubIndustry` must be in `BIOTECH_INDUSTRIES` (`Biotechnology`, `Pharmaceuticals`). Checking all candidates lets an ambiguous name such as "Vertex" resolve to the biotech one.
+  - Raises `TickerRejected` (bad/ambiguous/non-biotech input; message is safe to show the user, mapped to HTTP 422) or `GateUnavailable` (Finnhub failed; mapped to 503 and never cached as an answer).
+  - Blocking Finnhub calls run via `asyncio.to_thread`.
+- **streaming_callback.py**: `StreamingProgressCallback`, a LangChain `AsyncCallbackHandler`. On each tool start it puts `{"type": "progress", "message": <label>}` on an `asyncio.Queue` that `/analyze` drains into the SSE stream. Labels come from `TOOL_LABELS`; unmapped tools fall back to `Running <name>...`. Add an entry when you add a tool the user should see named.
+- **versioning.py**: `system_version()` returns `<git sha>-<prompt hash>[-dirty]`, recorded on every paper trade so results can be attributed to a code and prompt state.
+  - git sha: from `GIT_SHA` if set (Docker builds without `.git`), else `git rev-parse`, else `nogit`.
+  - prompt hash: 8-char SHA-256 over the normalized text of every prompt in `PROMPTS`. **Register new agent prompts in `PROMPTS`** or prompt edits won't change the version.
+  - `-dirty`: uncommitted tracked changes exist (untracked files are ignored).
 
 ### **src/middleware/**
 LangChain `AgentMiddleware` implementations applied at agent construction time:
@@ -152,7 +167,9 @@ LLM prompt templates:
 - **financial_health_agent_prompt.py**: Specialized prompt for the financial health agent
 
 ### **src/evaluation/**
-Signal evaluation framework for validating paper trading signals against historical price data. Evaluates how well `BUY / SELL / HOLD / AVOID` signals predicted actual forward returns:
+Signal evaluation framework for validating paper trading signals against price data. Evaluates how well `BUY / SELL / HOLD / AVOID` signals predicted actual forward returns:
+- **models.py**: SQLAlchemy `PaperTrade` model (`paper_trades` table), unique on `(ticker, signal_date, system_version)`.
+- **repository.py**: `upsert_signal`; a same-day re-run replaces that day's signal and clears its evaluation.
 - **types.py**: Core data structures — `BacktestRequest`, `Signal`, `DecisionLabel`, `BacktestObservation`, `BacktestResult`
 - **engine.py**: `run(request, signals) → BacktestResult`. For each signal, looks up entry price at `as_of_date` and exit price at `as_of_date + holding_period_days`, then computes `forward_return` and `is_correct` based on configurable `buy_threshold` / `sell_threshold`. Aggregates per-observation results into summary stats (`total_observations`, `correct_observations`, `accuracy`).
 - **price_loader.py**: `load_prices(ticker, start, end) → dict[date, float]` — fetches historical OHLCV data via MarketStack and returns a `{date: close_price}` map used by the engine.
@@ -174,24 +191,11 @@ Project documentation split into two sections:
 ### **tests/**
 Split into `unit/` and `integration/`, matching the two CI jobs in `.github/workflows/test.yml`. `conftest.py` at the `tests/` root stubs heavy dependencies (`llm_provider`, `deepagents`) via `sys.modules` injection *before* test collection begins, so any test importing `app` or `src.*` gets safe mocks instead of raising on missing env vars or LLM setup.
 
-- **unit/**: No live services required; runs via `uv run pytest tests/unit/ -v`.
-  - **test_evaluation_engine.py**: Verifies `src.evaluation.engine.run` end-to-end. Patches `load_prices` with a fixed `{date: float}` price map and asserts correctness classification for all five `DecisionLabel` cases:
-    | Signal | Return | Expected |
-    |--------|--------|----------|
-    | `BUY` | +15% | correct (≥ 10% threshold) |
-    | `SELL` | −15% | correct (≤ −10% threshold) |
-    | `BUY` | +4% | incorrect (below 10% threshold) |
-    | `HOLD` | +3.75% | correct (within ±10% band) |
-    | `AVOID` | −13.3% | correct (≤ −10% threshold) |
-  - **test_app_analyze.py**: Tests the `POST /analyze` endpoint and its Redis caching behavior with a mocked agent.
-  - **test_financial_health_tools.py**: Tests `src/agent_tools/financial_health_agent_tools.py` against mocked data providers.
-  - **test_streaming_callback.py**: Tests `StreamingProgressCallback` (`src/core/streaming_callback.py`).
-- **integration/**: Requires a real Redis instance (see the `redis` service container in CI, or `docker-compose up redis` locally); runs via `uv run pytest tests/integration/ -v`.
-  - **test_paper_trades_db.py**: Tests the `paper_trades` table against a real Postgres (separate `_test` database): migrations match the models, constraints, and same-day upsert behaviour.
-  - **test_app_integration.py**, **test_redis_cache.py**: Exercise the `/analyze` endpoint and Redis caching layer against a live Redis, with external APIs/LLM still mocked.
+- **unit/**: No live services required; runs via `uv run pytest tests/unit/ -v`. Test files are named after the module they cover (e.g. `test_ticker_gate.py` ↔ `src/core/ticker_gate.py`).
+- **integration/**: Requires real Redis and Postgres (see the `redis` service container in CI, or `docker-compose up` locally); runs via `uv run pytest tests/integration/ -v`. DB tests use a separate `_test` database. External APIs/LLM are still mocked.
 
 ### **Configuration Files**
-- **config.py**: Centralized app configuration. Currently defines Redis connection settings (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`), per-provider cache TTLs (`REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE`, `REDIS_CACHE_TTL_SECONDS_MARKETSTACK`), and reads `ALPHAVANTAGE_API_KEY` / `FINNHUB_API_KEY` from the environment.
+- **config.py**: Centralized configuration via a pydantic-settings `Settings` object (`settings`, loaded from `.env`). Covers Redis and Postgres connection settings (and the derived `database_url`), provider API keys, `LLM_PROVIDER` (validated: `DEEPSEEK_API_KEY` is required for `deepseek`), `LOG_LEVEL`, `ENV`, `ALLOWED_ORIGINS`, and the rate-limit/budget settings. Also exports the Redis settings and per-provider cache TTL constants (e.g. `REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY`) used by the cache layers.
 - **llm_provider.py**: Instantiates the LLM based on the `LLM_PROVIDER` environment variable. Supported values: `ollama` (Mistral via Ollama) and `deepseek` (DeepSeek Chat via `langchain_deepseek`).
 - **pyproject.toml**: Project metadata, dependencies, uv configuration
 
@@ -205,13 +209,22 @@ The `ui` folder contains the frontend code for the BioSignalFoundry project. It 
 ## Data Flow
 
 ### Request path
+Steps 2–5 are cheap, deterministic guards in `src/core/` that run before any LLM spend:
+
 1. `app.py` (FastAPI) receives a `POST /analyze` request with a natural-language `user_input`
-2. The request is forwarded to **`biosignalfoundry`** (`src/biosignalfoundry.py`) — a `deepagents` deep agent that acts as the supervisor
-3. The supervisor delegates to **`financial_health_subagent`** (`src/agents/financial_health_agent.py`) via the `CompiledSubAgent` interface
-4. The sub-agent calls **Agent Tools** (`src/agent_tools/financial_health_agent_tools.py`) to gather specific data points
-5. Agent Tools call **Data Providers** (`src/data_providers/`) which hit external APIs and cache responses in **Redis**
-6. The sub-agent returns a structured `FinancialHealthAgentOutput` to the supervisor
-7. The supervisor interprets the financial health score and produces a final `BioSignalFoundryOutput` (BUY/SELL/HOLD/AVOID + confidence + reasoning)
+2. **Rate limit** (`rate_limiter.check_rate_limit`): per-IP, per-minute and per-day. Exceeding returns 429 with `Retry-After`. Redis errors fail open.
+3. **Ticker gate** (`ticker_gate.resolve_biotech_ticker`): resolves the input to one biotech ticker. `TickerRejected` returns 422, `GateUnavailable` returns 503.
+4. **Result cache**: looks up `biosignalfoundry:analyze:<TICKER>` in Redis (keyed on the resolved ticker, so "Moderna" and "MRNA" share an entry). A hit is streamed back immediately.
+5. **Daily budget** (`rate_limiter.check_and_consume_daily_budget`): only cache misses consume it. Over the cap returns 503. Redis errors fail open.
+6. The request is forwarded to **`biosignalfoundry`** (`src/biosignalfoundry.py`) — a `deepagents` deep agent that acts as the supervisor — with a `StreamingProgressCallback` attached so tool starts reach the client as `progress` events
+7. The supervisor delegates to **`financial_health_subagent`** (`src/agents/financial_health_agent.py`) via the `CompiledSubAgent` interface
+8. The sub-agent calls **Agent Tools** (`src/agent_tools/financial_health_agent_tools.py`) to gather specific data points
+9. Agent Tools call **Data Providers** (`src/data_providers/`) which hit external APIs and cache responses in **Redis**
+10. The sub-agent returns a structured `FinancialHealthAgentOutput` to the supervisor
+11. The supervisor interprets the financial health score and produces a final `BioSignalFoundryOutput` (BUY/SELL/HOLD/AVOID + confidence + reasoning), which is cached in Redis and sent as the `result` event
+
+### Paper-trade path
+`scripts/record_signal.py` calls the agent per ticker and upserts a `paper_trades` row stamped with `core.versioning.system_version()`. `scripts/evaluate_signals.py` later fills in the exit price and correctness. Both use `core.db.SessionLocal`.
 
 ### Data provider call chain
 ```

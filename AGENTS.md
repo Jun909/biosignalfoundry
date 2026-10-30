@@ -52,6 +52,11 @@ Project philosophy and roadmap: `README.md`.
 - Paper trades are unique per `(ticker, signal_date, system_version)`; `record_signal.py`
   upserts, so a same-day re-run replaces that day's signal and clears its evaluation.
 
+## Docs
+- When you add or change a module in `src/core/`, an agent, a tool, a data provider, an
+  endpoint, or a step in the `/analyze` request path, update
+  `docs/architecture_docs/architecture_overview.md` in the same change.
+
 ## Commits/PRs
 - Squash-merged, plain imperative titles (see `git log`), no conventional-commits
   prefix enforced.
