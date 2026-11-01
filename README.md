@@ -85,6 +85,79 @@ There are four compounding reasons why proper historical backtesting is not feas
 
 For these reasons, the evaluation strategy used here is **paper trading**: the agent makes a decision using current data, that decision is recorded with today's price as the entry point, and it is evaluated against real prices after the holding period elapses. This is honest, reproducible, and free of look-ahead bias.
 
+## Evaluation
+
+> **Status:** this section describes the evaluation design we are moving to. The current
+> scripts (`scripts/record_signal.py`, `scripts/evaluate_signals.py`) implement a simpler
+> version of it (single holding period, fixed ±5% correctness threshold, no benchmark).
+
+The question evaluation answers is not "how many calls were right this week?" but
+**"is version B better than version A?"**. The system does not learn on its own; it only
+changes when we change it (a new subagent, tool, prompt or model), so the useful
+comparison is between versions, not along the calendar.
+
+### Versions
+
+Every meaningful change to the system is a named version (`v1.0`, `v1.1`, ...), for
+example adding a subagent or a tool, or changing a prompt or the LLM. A version is a
+**configuration** (enabled subagents and tools, prompts, LLM provider and model), registered
+with a label and a description. The git SHA and prompt hashes are recorded as metadata, but
+the label is the identifier, so the same codebase can run any registered version.
+
+### Parallel evaluation
+
+Instead of running paper trading on a weekly schedule, we evaluate versions in **parallel
+batches**:
+
+1. Pick a signal date and run every version to be compared against the same watchlist on
+   that day, so all versions share the same entry prices and the same market conditions.
+2. Score each signal at several horizons (**7, 30 and 90 days**) as they mature, so short
+   horizons give early feedback while the 90-day results complete in the background.
+3. Repeat for a few batches (for example monthly), since one batch is a single market
+   window and the stocks within it are correlated. More batches and a larger watchlist
+   matter more than more frequent runs.
+
+Because versions are compared on the same dates and tickers, differences can be read
+stock by stock rather than only in aggregate. LLM output varies between runs, so we
+measure that noise (the same version run twice) before reading small differences
+between versions as real.
+
+### Metrics
+
+* **Benchmark return (XBI and IBB)** — each signal's forward return is compared with the
+  return of the XBI (equal-weighted biotech ETF) and IBB (cap-weighted) over the same
+  window, giving an **excess return** that separates stock-picking from a sector-wide move.
+* **Spread** — average forward return of BUY calls minus that of SELL/AVOID calls. The
+  headline metric: a system with skill should favour stocks that outperform the ones it
+  dislikes, regardless of market direction. Always reported with the BUY and SELL/AVOID
+  counts.
+* **Hit rate** — BUY beating the benchmark and SELL/AVOID trailing it, computed per
+  horizon and per decision type. HOLD is left out of the headline number, since it is
+  rewarded for the stock simply not moving.
+* **Baselines** — every result is shown next to simple strategies (always-BUY, always-HOLD,
+  random, the benchmark itself), with N and a confidence interval, so accuracy is never
+  read in isolation.
+* **Confusion matrix** — decision (BUY / HOLD / SELL+AVOID) against realised outcome
+  (up / flat / down, relative to the benchmark). A diagnostic for systematic habits, such as
+  never saying SELL; not used to rank versions.
+* **Confidence calibration** — whether high-confidence calls do better than low-confidence ones.
+* **Loss profile and drawdown** — worst single-call loss and average win versus average
+  loss. Maximum drawdown is only meaningful for a simulated basket of the BUY calls over a
+  holding period, so it is a later addition rather than a per-signal metric.
+
+Derived flags such as "correct" or "excess return" are computed from stored data, not
+stored as verdicts, so definitions and thresholds can change without re-running anything.
+
+### Data stored
+
+* **Versions:** label, description, git SHA, prompt hashes, LLM provider and model, enabled
+  subagents and tools.
+* **Signals:** version, ticker, signal date, decision, confidence, rationale, the agent's
+  full structured output (including each subagent's output), entry price, and XBI and IBB
+  prices on the signal date.
+* **Evaluations (one per signal and horizon):** the price date actually used, exit price,
+  and XBI and IBB exit prices.
+
 ## Planned Roadmap
 
 ### Phase 1 — Stabilization
@@ -113,10 +186,15 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
 
 ### Phase 2 — Signal Completeness
 * Wire remaining subagents: clinical (OpenFDA), macro (FRED), sentiment (Finnhub)
-* Paper trading loop: record decisions and track returns over time (manual today via
+* Paper trading: record decisions and track returns over time (manual today via
   `scripts/record_signal.py` / `scripts/evaluate_signals.py`, both backed by Postgres)
-* Automate the paper trading loop to run on a schedule instead of by hand
-  (mechanism TBD; depends on Phase 1's persistent storage)
+* Explicit version registry: named versions (`v1.0`, `v1.1`, ...) defined as
+  configurations (subagents, tools, prompts, model), replacing the git SHA + prompt hash
+  label as the identifier (see [Evaluation](#evaluation))
+* Parallel version evaluation instead of a scheduled weekly loop: run every version
+  on the same watchlist and date, score at 7/30/90-day horizons, repeat for a few batches.
+  Needs a schema migration for per-horizon evaluations, benchmark prices and the agent's
+  structured output
 * ~~Deterministic ticker resolution ahead of agent reasoning, instead of relying on
   the LLM to infer tickers~~ ✅ Done — see `src/core/ticker_gate.py`; input is a single
   company name or ticker, matched against the SEC company list bundled with
@@ -131,8 +209,10 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
   paper trades are labelled `<git sha>-<prompt hash>` (plus `-dirty` for uncommitted
   changes) and `record_signal.py` uses it automatically. Rows recorded before this
   carry the legacy `v1.0` label
-* Benchmark comparison in evaluation (always-BUY, random, sector return) so paper
-  trading accuracy is measured against a baseline instead of read in isolation
+* Evaluation metrics: XBI/IBB benchmark and excess return, BUY vs SELL/AVOID spread,
+  hit rate, baselines (always-BUY, always-HOLD, random), confusion matrix and
+  calibration, so accuracy is measured against a baseline instead of read in isolation
+  (see [Evaluation](#evaluation))
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
 * Data quality validation layer
 
