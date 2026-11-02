@@ -9,7 +9,7 @@ const SUGGESTIONS = [
   "CRISPR Therapeutics",
 ];
 
-// Input is a single company name or ticker, not a sentence (see ticker resolution in README roadmap).
+// Input is a single company name or ticker, not a sentence (see ticker resolution in docs/ROADMAP.md).
 const MAX_INPUT_LENGTH = 60;
 
 const DECISION_STYLES: Record<string, { bg: string; text: string; dot: string }> = {

@@ -5,7 +5,7 @@ BioSignalFoundry: a LangChain/deepagents system that answers BUY/SELL/HOLD/AVOID
 for a biotech stock from deterministic signal extraction + LLM reasoning.
 FastAPI backend (`app.py`) + React/TS frontend (`ui/`). Not a trading bot.
 Full architecture: `docs/architecture_docs/architecture_overview.md`.
-Project philosophy and roadmap: `README.md`.
+Project philosophy: `README.md`. Roadmap: `docs/ROADMAP.md`.
 
 ## Setup
 - Python deps: `uv sync --locked --extra dev` (uv, not poetry/pip — requires 3.11–3.14)
