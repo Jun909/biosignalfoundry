@@ -163,9 +163,9 @@ stored as verdicts, so definitions and thresholds can change without re-running 
 The full, phase-by-phase plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 * **Phase 1 — Stabilization:** persistence, CI, health checks, rate limiting, config validation (done)
-* **Phase 2 — Signal Completeness:** remaining subagents, paper trading, version registry, evaluation metrics, SEC-filing RAG (in progress)
+* **Phase 2 — Signal Completeness:** remaining subagents, version registry, new evaluation schema and scripts (all metrics above), SEC-filing RAG (in progress)
 * **Phase 3 — Scalability:** async task queue, circuit breakers, true async I/O
-* **Phase 4 — Observability:** LLM tracing, metrics, cost and token tracking
+* **Phase 4 — Observability & Parallel Evaluation:** Langfuse tracing, metrics, cost and token tracking, then parallel multi-version evaluation runs
 * **Phase 5 — ML Feedback Loop:** outcome tracking, prompt A/B testing, fine-tuning
 * **Phase 6 — Trust & Product Surface:** public track record, signal-level reasoning in the UI
 * **Beyond MVP:** user accounts, monitoring, AI with memory, discovery feed (unscheduled)

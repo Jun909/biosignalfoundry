@@ -64,14 +64,13 @@ biosignalfoundry/
 │       ├── types.py              # Data structures (BacktestRequest, Signal, BacktestObservation, BacktestResult)
 │       ├── engine.py             # Evaluation engine
 │       ├── price_loader.py       # Historical price data loader
-│       ├── models.py             # SQLAlchemy PaperTrade model (paper_trades table)
-│       └── repository.py         # upsert_signal: same-day re-run updates instead of duplicating
+│       ├── models.py             # SQLAlchemy models: SystemVersion, PaperTrade, PaperTradeEvaluation
+│       └── repository.py         # upsert_signal: re-running a batch updates instead of duplicating
 │    
 │
 ├── scripts/                      # Paper trading CLI scripts
 │   ├── record_signal.py          # Runs the agent for a ticker, logs a signal + entry price
-│   ├── evaluate_signals.py       # Evaluates matured signals against actual exit prices
-│   └── import_paper_trades.py    # One-time import of the legacy JSON log into Postgres
+│   └── evaluate_signals.py       # Evaluates matured signals against actual exit prices
 │
 ├── alembic.ini                   # Alembic configuration
 ├── alembic/                      # Database migrations (Alembic, async)
@@ -168,8 +167,8 @@ LLM prompt templates:
 
 ### **src/evaluation/**
 Signal evaluation framework for validating paper trading signals against price data. Evaluates how well `BUY / SELL / HOLD / AVOID` signals predicted actual forward returns:
-- **models.py**: SQLAlchemy `PaperTrade` model (`paper_trades` table), unique on `(ticker, signal_date, system_version)`.
-- **repository.py**: `upsert_signal`; a same-day re-run replaces that day's signal and clears its evaluation.
+- **models.py**: SQLAlchemy models. `SystemVersion` (`system_versions`): registered version label + config. `PaperTrade` (`paper_trades`): one decision per `(batch, version_label, ticker)` with the agent's JSON output and entry prices for the stock, XBI and IBB. `PaperTradeEvaluation` (`paper_trade_evaluations`): one row per trade and horizon with exit prices, plus entry prices re-fetched in the same download (`*_entry_price_adj`) so splits/dividends between signal and exit cancel out. Only observations are stored; returns and verdicts are derived at report time via the `paper_trade_returns` view (created in the migration, not an ORM model), which must be used instead of the raw entry prices.
+- **repository.py**: `upsert_signal`; re-running the same batch/version/ticker replaces the signal and deletes its evaluations.
 - **types.py**: Core data structures — `BacktestRequest`, `Signal`, `DecisionLabel`, `BacktestObservation`, `BacktestResult`
 - **engine.py**: `run(request, signals) → BacktestResult`. For each signal, looks up entry price at `as_of_date` and exit price at `as_of_date + holding_period_days`, then computes `forward_return` and `is_correct` based on configurable `buy_threshold` / `sell_threshold`. Aggregates per-observation results into summary stats (`total_observations`, `correct_observations`, `accuracy`).
 - **price_loader.py**: `load_prices(ticker, start, end) → dict[date, float]` — fetches historical OHLCV data via MarketStack and returns a `{date: close_price}` map used by the engine.
@@ -178,7 +177,6 @@ Signal evaluation framework for validating paper trading signals against price d
 CLI entry points for the paper trading loop described in the README's "On Backtesting" section:
 - **record_signal.py**: Runs the agent for a ticker (or the whole watchlist), records today's price as the entry point, and upserts the signal into the `paper_trades` table (a same-day re-run replaces that day's signal).
 - **evaluate_signals.py**: Evaluates signals whose holding period has elapsed against actual exit prices, writing the result back to the same `paper_trades` row so each signal is only evaluated once.
-- **import_paper_trades.py**: One-time, re-runnable import of the legacy `data/paper_trades.json` into Postgres.
 
 ### **alembic/**
 Database migrations. `alembic/env.py` reads the connection URL from `config.Settings.database_url` and the schema from `src.core.db.Base.metadata`, so models and migrations share one source of truth. `src/core/db.py` holds the async engine and session factory.

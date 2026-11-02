@@ -49,8 +49,8 @@ Project philosophy: `README.md`. Roadmap: `docs/ROADMAP.md`.
   read the README's "On Backtesting" section before touching it; paper trading
   (`scripts/record_signal.py` + `scripts/evaluate_signals.py`) is the intended
   evaluation method instead.
-- Paper trades are unique per `(ticker, signal_date, system_version)`; `record_signal.py`
-  upserts, so a same-day re-run replaces that day's signal and clears its evaluation.
+- Paper trades are unique per `(batch, version_label, ticker)`; `record_signal.py`
+  upserts, so re-running the same batch replaces that signal and deletes its evaluations.
 
 ## Docs
 - When you add or change a module in `src/core/`, an agent, a tool, a data provider, an
