@@ -49,6 +49,7 @@ biosignalfoundry/
 │   │   ├── rate_limiter.py       # Per-IP rate limits + global daily analysis budget (Redis)
 │   │   ├── streaming_callback.py # Callback pushing tool-progress events to the SSE stream
 │   │   ├── ticker_gate.py        # Deterministic company-name/ticker resolution + biotech gate
+│   │   ├── version_registry.py   # Named system versions (v1.0, ...) as code-defined configs + DB registration
 │   │   └── versioning.py         # system_version label (git sha + prompt hash) for paper trades
 │   │
 │   ├── middleware/               # LangChain agent middleware
@@ -155,6 +156,10 @@ Shared infrastructure used by `app.py`, the agents and the scripts. Nothing here
   - git sha: from `GIT_SHA` if set (Docker builds without `.git`), else `git rev-parse`, else `nogit`.
   - prompt hash: 8-char SHA-256 over the normalized text of every prompt in `PROMPTS`. **Register new agent prompts in `PROMPTS`** or prompt edits won't change the version.
   - `-dirty`: uncommitted tracked changes exist (untracked files are ignored).
+- **version_registry.py**: the named versions used by paper trading (`VERSIONS`, `DEFAULT_VERSION`). A version is a `VersionConfig`: enabled subagents, prompt names (keys of `versioning.PROMPTS`), LLM provider/model/temperature, and a pinned `prompt_hash`. Imports no agent or LLM code.
+  - `verify_prompts(label)` raises `VersionDrift` if a prompt the version uses was edited in place; copy it under a new `PROMPTS` name and register a new version instead.
+  - `register_version(session, label)` inserts the `system_versions` row on first use and raises `VersionDrift` if the stored config later differs. The caller commits.
+  - `get_version` / `resolve_labels` look up a label or parse a CLI value (`all`, `v1.0,v1.1`). Add a subagent name to `KNOWN_SUBAGENTS` when wiring a new subagent.
 
 ### **src/middleware/**
 LangChain `AgentMiddleware` implementations applied at agent construction time:
