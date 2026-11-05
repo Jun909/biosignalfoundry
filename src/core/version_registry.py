@@ -21,7 +21,8 @@ tool applies to every version run afterwards. ``git_sha`` on the row records whi
 commit first registered it.
 
 This module deliberately imports no agent or LLM code. Turning a config into a
-running agent is the job of the agent factory.
+running agent is the job of the agent factory (``build_agent``), which also checks
+that every subagent a version names has a builder.
 """
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -29,10 +30,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.versioning import PROMPTS, git_sha, prompt_hash
 from src.evaluation.models import SystemVersion
-
-# Subagent names a version may enable. The agent factory maps each name to its
-# CompiledSubAgent; add the name here when wiring a new subagent.
-KNOWN_SUBAGENTS: frozenset[str] = frozenset({"financial_health"})
 
 
 class VersionError(Exception):
@@ -59,12 +56,17 @@ class VersionConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     description: str
-    subagents: tuple[str, ...]
-    # Names in ``versioning.PROMPTS`` that this version uses (supervisor + subagents).
-    prompts: tuple[str, ...]
+    # Prompt names are keys of ``versioning.PROMPTS``.
+    supervisor_prompt: str
+    # Enabled subagent name -> the prompt name it uses.
+    subagents: dict[str, str]
     llm: LLMConfig
-    # Hash of the prompts above, pinned so an in-place prompt edit is detected.
+    # Hash of every prompt this version uses, pinned so an in-place edit is detected.
     prompt_hash: str = Field(min_length=8, max_length=8)
+
+    @property
+    def prompt_names(self) -> tuple[str, ...]:
+        return tuple(sorted({self.supervisor_prompt, *self.subagents.values()}))
 
     def snapshot(self) -> dict:
         """The JSON stored in ``system_versions.config``. Excludes the description,
@@ -75,8 +77,8 @@ class VersionConfig(BaseModel):
 VERSIONS: dict[str, VersionConfig] = {
     "v1.0": VersionConfig(
         description="Baseline: supervisor + financial health subagent only",
-        subagents=("financial_health",),
-        prompts=("biosignalfoundry", "financial_health_agent"),
+        supervisor_prompt="biosignalfoundry",
+        subagents={"financial_health": "financial_health_agent"},
         llm=LLMConfig(provider="deepseek", model="deepseek-chat", temperature=0.1),
         prompt_hash="aa847f50",
     ),
@@ -89,12 +91,7 @@ DEFAULT_VERSION = "v1.0"
 
 def _validate_registry() -> None:
     for label, config in VERSIONS.items():
-        unknown_subagents = set(config.subagents) - KNOWN_SUBAGENTS
-        if unknown_subagents:
-            raise VersionError(
-                f"{label}: unknown subagents {sorted(unknown_subagents)}"
-            )
-        missing_prompts = set(config.prompts) - PROMPTS.keys()
+        missing_prompts = set(config.prompt_names) - PROMPTS.keys()
         if missing_prompts:
             raise VersionError(
                 f"{label}: prompts {sorted(missing_prompts)} are not in "
@@ -130,7 +127,7 @@ def resolve_labels(spec: str) -> list[str]:
 
 def current_prompt_hash(label: str) -> str:
     config = get_version(label)
-    return prompt_hash({name: PROMPTS[name] for name in config.prompts})
+    return prompt_hash({name: PROMPTS[name] for name in config.prompt_names})
 
 
 def verify_prompts(label: str) -> None:

@@ -20,6 +20,7 @@ from src.core.redis_client import redis_client
 from src.core.streaming_callback import StreamingProgressCallback
 from src.core.ticker_gate import (GateUnavailable, TickerRejected,
                                   resolve_biotech_ticker)
+from src.core.version_registry import DEFAULT_VERSION
 
 load_dotenv()
 logger = setup_logging(
@@ -100,8 +101,9 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
         )
     ticker = resolved.ticker
 
-    # Keyed on the resolved ticker so "Moderna", "moderna stock" and "MRNA" share one entry.
-    cache_key = f"biosignalfoundry:analyze:{ticker}"
+    # Keyed on the resolved ticker so "Moderna", "moderna stock" and "MRNA" share one entry,
+    # and on the version so changing DEFAULT_VERSION never serves the old version's answer.
+    cache_key = f"biosignalfoundry:analyze:{DEFAULT_VERSION}:{ticker}"
     try:
         cached = redis_client.get(cache_key)
     except RedisError as e:

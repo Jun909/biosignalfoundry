@@ -111,11 +111,11 @@ FastAPI application entry point (CORS origins come from `ALLOWED_ORIGINS`):
 - `GET /ready`: readiness; pings Redis and returns 503 if it is unreachable.
 
 ### **`src/biosignalfoundry.py`**
-Defines the top-level `biosignalfoundry` agent using `deepagents.create_deep_agent`. Composes the `financial_health_subagent` and enforces a structured output schema (`BioSignalFoundryOutput`) via `AutoStrategy`.
+Defines `BioSignalFoundryOutput` and `build_agent(label, model=None)`, which builds the top-level deep agent (`deepagents.create_deep_agent`) for a registered version from `core/version_registry.py`: it verifies the version's prompts against their pinned hash (`VersionDrift` on an in-place edit), builds the version's LLM with `make_llm` (unless `model` overrides it), builds each enabled subagent through `SUBAGENT_BUILDERS`, and enforces the structured output schema via `AutoStrategy`. The module-level `biosignalfoundry` served by the API is `build_agent(DEFAULT_VERSION, model=llm)`, i.e. the default version on the LLM chosen by `LLM_PROVIDER`; paper trading builds versions without the override so each uses the LLM it pins. `SUBAGENT_BUILDERS` is the single list of subagents; `build_agent` raises `VersionError` if a version names a subagent with no builder, and a unit test checks every registered version.
 
 ### **src/agents/**
 Contains agent implementations that orchestrate decision-making pipelines. Each agent uses tools from `agent_tools/` to gather and analyze data. Agents are wrapped as `CompiledSubAgent` instances so they can be composed into the top-level deep agent.
-- `financial_health_agent.py`: Agent for analyzing biotech company financial health. Exposes `financial_health_subagent` (a `CompiledSubAgent`).
+- `financial_health_agent.py`: Agent for analyzing biotech company financial health. Exposes `build_financial_health_subagent(llm, system_prompt)`, which returns a `CompiledSubAgent`.
 
 ### **src/agent_tools/**
 Provides specialized functions (tools) that agents can invoke. The tools further filter and extract data from src/data_providers. Each tool file corresponds to a decision pipeline:
@@ -156,10 +156,10 @@ Shared infrastructure used by `app.py`, the agents and the scripts. Nothing here
   - git sha: from `GIT_SHA` if set (Docker builds without `.git`), else `git rev-parse`, else `nogit`.
   - prompt hash: 8-char SHA-256 over the normalized text of every prompt in `PROMPTS`. **Register new agent prompts in `PROMPTS`** or prompt edits won't change the version.
   - `-dirty`: uncommitted tracked changes exist (untracked files are ignored).
-- **version_registry.py**: the named versions used by paper trading (`VERSIONS`, `DEFAULT_VERSION`). A version is a `VersionConfig`: enabled subagents, prompt names (keys of `versioning.PROMPTS`), LLM provider/model/temperature, and a pinned `prompt_hash`. Imports no agent or LLM code.
+- **version_registry.py**: the named versions used by paper trading (`VERSIONS`, `DEFAULT_VERSION`). A version is a `VersionConfig`: a supervisor prompt, enabled subagents (name → prompt name; prompt names are keys of `versioning.PROMPTS`), LLM provider/model/temperature, and a pinned `prompt_hash`. Imports no agent or LLM code.
   - `verify_prompts(label)` raises `VersionDrift` if a prompt the version uses was edited in place; copy it under a new `PROMPTS` name and register a new version instead.
   - `register_version(session, label)` inserts the `system_versions` row on first use and raises `VersionDrift` if the stored config later differs. The caller commits.
-  - `get_version` / `resolve_labels` look up a label or parse a CLI value (`all`, `v1.0,v1.1`). Add a subagent name to `KNOWN_SUBAGENTS` when wiring a new subagent.
+  - `get_version` / `resolve_labels` look up a label or parse a CLI value (`all`, `v1.0,v1.1`).
 
 ### **src/middleware/**
 LangChain `AgentMiddleware` implementations applied at agent construction time:
@@ -199,7 +199,7 @@ Split into `unit/` and `integration/`, matching the two CI jobs in `.github/work
 
 ### **Configuration Files**
 - **config.py**: Centralized configuration via a pydantic-settings `Settings` object (`settings`, loaded from `.env`). Covers Redis and Postgres connection settings (and the derived `database_url`), provider API keys, `LLM_PROVIDER` (validated: `DEEPSEEK_API_KEY` is required for `deepseek`), `LOG_LEVEL`, `ENV`, `ALLOWED_ORIGINS`, and the rate-limit/budget settings. Also exports the Redis settings and per-provider cache TTL constants (e.g. `REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY`) used by the cache layers.
-- **llm_provider.py**: Instantiates the LLM based on the `LLM_PROVIDER` environment variable. Supported values: `ollama` (Mistral via Ollama) and `deepseek` (DeepSeek Chat via `langchain_deepseek`).
+- **llm_provider.py**: `make_llm(provider, model, temperature)` builds a chat model (`ollama` via `langchain_ollama`, `deepseek` via `langchain_deepseek`). The module-level `llm` is the API's default, chosen by the `LLM_PROVIDER` environment variable (Mistral via Ollama, or DeepSeek Chat).
 - **pyproject.toml**: Project metadata, dependencies, uv configuration
 
 ### **Docker**
@@ -217,10 +217,10 @@ Steps 2–5 are cheap, deterministic guards in `src/core/` that run before any L
 1. `app.py` (FastAPI) receives a `POST /analyze` request with a natural-language `user_input`
 2. **Rate limit** (`rate_limiter.check_rate_limit`): per-IP, per-minute and per-day. Exceeding returns 429 with `Retry-After`. Redis errors fail open.
 3. **Ticker gate** (`ticker_gate.resolve_biotech_ticker`): resolves the input to one biotech ticker. `TickerRejected` returns 422, `GateUnavailable` returns 503.
-4. **Result cache**: looks up `biosignalfoundry:analyze:<TICKER>` in Redis (keyed on the resolved ticker, so "Moderna" and "MRNA" share an entry). A hit is streamed back immediately.
+4. **Result cache**: looks up `biosignalfoundry:analyze:<DEFAULT_VERSION>:<TICKER>` in Redis (keyed on the resolved ticker, so "Moderna" and "MRNA" share an entry, and on the version, so changing `DEFAULT_VERSION` never serves the previous version's answer). A hit is streamed back immediately.
 5. **Daily budget** (`rate_limiter.check_and_consume_daily_budget`): only cache misses consume it. Over the cap returns 503. Redis errors fail open.
 6. The request is forwarded to **`biosignalfoundry`** (`src/biosignalfoundry.py`) — a `deepagents` deep agent that acts as the supervisor — with a `StreamingProgressCallback` attached so tool starts reach the client as `progress` events
-7. The supervisor delegates to **`financial_health_subagent`** (`src/agents/financial_health_agent.py`) via the `CompiledSubAgent` interface
+7. The supervisor delegates to the **financial health subagent** (`src/agents/financial_health_agent.py`) via the `CompiledSubAgent` interface
 8. The sub-agent calls **Agent Tools** (`src/agent_tools/financial_health_agent_tools.py`) to gather specific data points
 9. Agent Tools call **Data Providers** (`src/data_providers/`) which hit external APIs and cache responses in **Redis**
 10. The sub-agent returns a structured `FinancialHealthAgentOutput` to the supervisor

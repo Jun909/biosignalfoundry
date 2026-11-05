@@ -31,6 +31,7 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
+from src.core import version_registry as vr
 from src.core.db import Base
 from src.evaluation.models import (PaperTrade, PaperTradeEvaluation,
                                    SystemVersion)
@@ -332,3 +333,30 @@ async def test_returns_view_omits_unevaluated_trades(session):
 
     rows = (await session.execute(text("SELECT * FROM paper_trade_returns"))).all()
     assert rows == []
+
+
+# ---------------------------------------------------------------------------
+# register_version against the real table
+# ---------------------------------------------------------------------------
+async def test_register_version_roundtrips_through_postgres(engine):
+    async with AsyncSession(engine, expire_on_commit=False) as first:
+        await vr.register_version(first, "v1.0")
+        await first.commit()
+
+    # A fresh session reads the JSONB back from the database, so equality below
+    # proves the stored config really matches the in-code snapshot.
+    async with AsyncSession(engine, expire_on_commit=False) as second:
+        row = await vr.register_version(second, "v1.0")
+        assert row.config == vr.get_version("v1.0").snapshot()
+        assert await count_rows(second, SystemVersion) == 1
+
+
+async def test_register_version_detects_drift_in_stored_row(engine):
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        row = await vr.register_version(session, "v1.0")
+        row.config = {**row.config, "subagents": {}}
+        await session.commit()
+
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        with pytest.raises(vr.VersionDrift):
+            await vr.register_version(session, "v1.0")

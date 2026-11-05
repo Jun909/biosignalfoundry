@@ -25,6 +25,7 @@ from app import app
 from src.biosignalfoundry import BioSignalFoundryOutput
 from src.core.redis_client import redis_client
 from src.core.ticker_gate import ResolvedTicker
+from src.core.version_registry import DEFAULT_VERSION
 
 TEST_INPUT = "NVDA"
 
@@ -37,8 +38,8 @@ STRUCTURED_RESULT = BioSignalFoundryOutput(
 
 
 def make_cache_key(ticker: str) -> str:
-    """Mirrors the cache key logic in app.py exactly (keyed on resolved ticker)."""
-    return f"biosignalfoundry:analyze:{ticker}"
+    """Mirrors the cache key logic in app.py exactly (version + resolved ticker)."""
+    return f"biosignalfoundry:analyze:{DEFAULT_VERSION}:{ticker}"
 
 
 @pytest.fixture(autouse=True)
