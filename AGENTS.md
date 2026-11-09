@@ -49,8 +49,10 @@ Project philosophy: `README.md`. Roadmap: `docs/ROADMAP.md`.
   read the README's "On Backtesting" section before touching it; paper trading
   (`scripts/record_signal.py` + `scripts/evaluate_signals.py`) is the intended
   evaluation method instead.
-- Paper trades are unique per `(batch, version_label, ticker)`; `record_signal.py`
-  upserts, so re-running the same batch replaces that signal and deletes its evaluations.
+- Paper trades are unique per `(batch, version_label, ticker)`. Re-running a batch with
+  `record_signal.py` skips signals already recorded; `--force` replaces them (upsert) and
+  deletes their evaluations. A batch must keep one signal date, so start a new batch name
+  on a new day.
 
 ## Versions: wiring a new agent, tool or version
 Every change that alters what the system decides is a new **version** (`v1.0`, `v1.1`, ...).

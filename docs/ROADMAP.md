@@ -29,23 +29,34 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
 
 ## Phase 2 — Signal Completeness
 * Wire remaining subagents: clinical (OpenFDA), macro (FRED), sentiment (Finnhub)
-* Explicit version registry: named versions (`v1.0`, `v1.1`, ...) defined as
+* ~~Explicit version registry: named versions (`v1.0`, `v1.1`, ...) defined as
   configurations (subagents, tools, prompts, model), replacing the git SHA + prompt hash
-  label as the identifier (see [Evaluation](../README.md#evaluation))
+  label as the identifier~~ ✅ Done — see `src/core/version_registry.py` (a version is a
+  supervisor prompt, a subagent → prompt map and an LLM, with a pinned prompt hash that
+  makes an in-place prompt edit an error) and `build_agent(label)` in
+  `src/biosignalfoundry.py`. Only `v1.0` (financial health baseline) exists so far; the
+  `/analyze` cache key includes the served version. Tools are not part of a version's
+  config: a changed tool becomes a new version by giving its subagent a new name (see
+  AGENTS.md). See [Evaluation](../README.md#evaluation)
 * ~~Rebuild the database schema for the new evaluation design~~ ✅ Done — three tables
   (`system_versions`, `paper_trades`, `paper_trade_evaluations`) and the
   `paper_trade_returns` view, in a single Alembic migration (`src/evaluation/models.py`).
   Only observations are stored; forward, XBI, IBB and excess returns are derived by the
   view from split/dividend-adjusted entry prices re-fetched at evaluation time. The old
   single-table layout and its data were dropped
-* Rewrite `scripts/record_signal.py` for the new schema: run a registered version over a
+* ~~Rewrite `scripts/record_signal.py` for the new schema: run a registered version over a
   30-ticker watchlist (the current 15 plus 15 more, checked against the ticker/sector
   gate) and store the decision, the agent's structured output and the entry prices for the
-  stock, XBI and IBB, grouped by `batch`
-* Rewrite `scripts/evaluate_signals.py` for the new schema: for every matured horizon
+  stock, XBI and IBB, grouped by `batch`~~ ✅ Done — `scripts/record_signal.py` is a thin
+  CLI over `src/evaluation/recorder.py`; the 30 tickers are in `src/evaluation/watchlist.py`
+  (all pass the gate and have prices). Versions in a batch share one date and one set of
+  entry prices; re-running a batch resumes it. The first real run should be checked to
+  confirm `agent_output.subagents` is populated as expected
+* ~~Rewrite `scripts/evaluate_signals.py` for the new schema: for every matured horizon
   (7/30/90 days) without an evaluation row, fetch the exit prices and the re-fetched
   adjusted entry prices for the stock, XBI and IBB, and insert a `paper_trade_evaluations`
-  row (idempotent; can be run late or repeatedly)
+  row (idempotent; can be run late or repeatedly)~~ ✅ Done — `scripts/evaluate_signals.py`
+  over `src/evaluation/evaluator.py`; horizons count from `entry_price_date`
 * `src/evaluation/metrics.py`: pure functions over rows from `paper_trade_returns` for
   excess return, BUY vs SELL/AVOID spread, hit rate, baselines (always-BUY, always-HOLD,
   random, benchmark), confusion matrix, confidence calibration and loss profile. Unit
@@ -72,6 +83,7 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
   stays as metadata (`git_sha`, `prompt_hash`)
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
 * Data quality validation layer
+* Define versioning
 
 ## Phase 3 — Scalability
 * Async task queue for agent execution (Celery + Redis)
@@ -84,6 +96,8 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
 * Metrics and centralized log aggregation
 * Cost and token usage tracking per request (Langfuse), so versions can be compared on
   cost as well as accuracy
+* Test run evaluation for v1.0
+* Consideration of input snapshot for parallel version evaluation
 * Parallel version evaluation instead of a scheduled weekly loop: once all subagents are
   wired and the versions are assigned (Phase 2) and cost tracking is in place, run every
   version on the same watchlist and signal date, score at 7/30/90-day horizons, repeat
