@@ -2,112 +2,31 @@
 Integration tests for the evaluation tables (system_versions, paper_trades,
 paper_trade_evaluations).
 
-These run against a real Postgres, in a dedicated `<POSTGRES_DB>_test` database
-(created on demand and migrated with Alembic), so they never touch real data.
-The test database URL comes from TEST_DATABASE_URL if set, otherwise it is built
-from POSTGRES_* in .env. Tests are skipped when Postgres is unreachable.
+These run against a real Postgres in a dedicated test database (see the
+fixtures in conftest.py), so they never touch real data. Tests are skipped when
+Postgres is unreachable.
 
 Run with:  pytest tests/integration/test_paper_trades_db.py
 Requires:  docker-compose up postgres
 """
 
-import os
 import uuid
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
 
-import asyncpg
 import pytest
 import pytest_asyncio
-from dotenv import dotenv_values
 from sqlalchemy import func, select, text
-from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from alembic import command
 from alembic.autogenerate import compare_metadata
-from alembic.config import Config
 from alembic.migration import MigrationContext
 from src.core import version_registry as vr
 from src.core.db import Base
-from src.evaluation.models import (PaperTrade, PaperTradeEvaluation,
-                                   SystemVersion)
+from src.evaluation.models import PaperTrade, PaperTradeEvaluation, SystemVersion
 from src.evaluation.repository import upsert_signal
 from src.evaluation.types import DecisionLabel
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _test_database_url() -> URL:
-    explicit = os.environ.get("TEST_DATABASE_URL")
-    if explicit:
-        return make_url(explicit)
-    env = dotenv_values(PROJECT_ROOT / ".env")
-    user, password, db = (
-        env.get(k) for k in ("POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB")
-    )
-    if not (user and password and db):
-        pytest.skip(
-            "No Postgres credentials: set TEST_DATABASE_URL or POSTGRES_* in .env"
-        )
-    return URL.create(
-        "postgresql+asyncpg",
-        username=user,
-        password=password,
-        host=env.get("POSTGRES_HOST", "localhost"),
-        port=int(env.get("POSTGRES_PORT", 5432)),
-        database=f"{db}_test",
-    )
-
-
-async def _ensure_database(url: URL) -> None:
-    admin = await asyncpg.connect(
-        user=url.username,
-        password=url.password,
-        host=url.host,
-        port=url.port,
-        database="postgres",
-    )
-    try:
-        exists = await admin.fetchval(
-            "SELECT 1 FROM pg_database WHERE datname = $1", url.database
-        )
-        if not exists:
-            await admin.execute(f'CREATE DATABASE "{url.database}"')
-    finally:
-        await admin.close()
-
-
-@pytest.fixture(scope="session")
-def test_db_url() -> URL:
-    import asyncio
-
-    url = _test_database_url()
-    try:
-        asyncio.run(_ensure_database(url))
-    except (OSError, asyncpg.PostgresError) as exc:
-        pytest.skip(
-            f"Postgres not available — start it with: docker-compose up postgres ({exc})"
-        )
-
-    cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
-    cfg.attributes["database_url"] = url.render_as_string(hide_password=False)
-    command.upgrade(cfg, "head")
-    return url
-
-
-@pytest_asyncio.fixture
-async def engine(test_db_url):
-    engine = create_async_engine(test_db_url, poolclass=NullPool)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.execute(
-            text("TRUNCATE paper_trade_evaluations, paper_trades, system_versions")
-        )
-    await engine.dispose()
 
 
 @pytest_asyncio.fixture

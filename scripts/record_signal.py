@@ -1,20 +1,24 @@
 """
-Record a paper trading signal: run the agent for a ticker,
-fetch today's entry price, and upsert it into the paper_trades table.
-Re-running for the same ticker on the same day (and system version)
-replaces that day's signal instead of creating a duplicate.
+Record a paper-trading batch: run one or more registered versions over the
+watchlist on the same day and store each decision with entry prices for the
+stock, XBI and IBB (see README "Evaluation").
+
+Every version in a batch shares one signal date and one set of entry prices, so
+versions can be compared stock by stock. Re-running the same batch skips signals
+already recorded (so a failed batch can be resumed); --force replaces them and
+deletes their evaluations. Run after the US market close so the entry price is
+a full day's close.
 
 Usage:
-    uv run python scripts/record_signal.py            # run all tickers in WATCHLIST
-    uv run python scripts/record_signal.py MRNA       # single ticker
-    uv run python scripts/record_signal.py MRNA --holding-days 14
+    uv run python scripts/record_signal.py --batch 2026-11-a --versions all
+    uv run python scripts/record_signal.py --batch 2026-11-a --versions v1.0,v1.1
+    uv run python scripts/record_signal.py --batch test-1 --versions v1.0 --tickers MRNA,GILD
 """
 
 import argparse
 import asyncio
 import sys
-from datetime import date, timedelta
-from decimal import Decimal
+from datetime import date
 from pathlib import Path
 
 # Ensure project root is on the path when run directly
@@ -24,144 +28,79 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from langchain.messages import HumanMessage
-
-from src.biosignalfoundry import BioSignalFoundryOutput, biosignalfoundry
-from src.core.db import SessionLocal, engine
-from src.core.versioning import system_version
-from src.evaluation.price_loader import load_prices, nearest_price_backward
-from src.evaluation.repository import upsert_signal
-from src.evaluation.types import DecisionLabel
-
-DECISION_MAP: dict[str, DecisionLabel] = {
-    "buy": DecisionLabel.BUY,
-    "sell": DecisionLabel.SELL,
-    "hold": DecisionLabel.HOLD,
-    "avoid": DecisionLabel.AVOID,
-}
-
-# Derived from git SHA + prompt hash (see src/core/versioning.py), computed once
-# per run so every ticker in a batch shares the same label.
-SYSTEM_VERSION = system_version()
-
-# Fixed watchlist for unbiased weekly coverage.
-# Edit this list to add/remove tickers; run with no positional argument to process all of them.
-WATCHLIST: list[str] = [
-    "AMGN",  # Amgen — large-cap benchmark
-    "GILD",  # Gilead Sciences
-    "REGN",  # Regeneron
-    "VRTX",  # Vertex Pharmaceuticals
-    "BIIB",  # Biogen
-    "ALNY",  # Alnylam — RNA therapeutics
-    "SRPT",  # Sarepta Therapeutics
-    "BMRN",  # BioMarin Pharmaceutical
-    "IONS",  # Ionis Pharmaceuticals
-    "EXEL",  # Exelixis
-    "MRNA",  # Moderna
-    "HALO",  # Halozyme Therapeutics
-    "ACAD",  # ACADIA Pharmaceuticals
-    "RARE",  # Ultragenyx
-    "PTGX",  # Protagonist Therapeutics
-]
+from config import settings
+from src.core.db import engine
+from src.core.logging_config import setup_logging
+from src.core.version_registry import VersionError, resolve_labels
+from src.evaluation.recorder import BatchError, record_batch
+from src.evaluation.watchlist import WATCHLIST
 
 
-async def get_decision(ticker: str) -> BioSignalFoundryOutput:
-    print(f"Invoking agent for {ticker}... (this may take a moment)")
-    result = await biosignalfoundry.ainvoke(
-        {"messages": [HumanMessage(f"Analyze {ticker}")]}
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Record a paper-trading batch")
+    parser.add_argument(
+        "--batch",
+        required=True,
+        help="Batch name grouping the versions compared together, e.g. 2026-11-a",
     )
-    output = result.get("structured_response")
-    if not isinstance(output, BioSignalFoundryOutput):
-        raise RuntimeError(
-            f"Agent did not return a structured response. Keys: {list(result.keys())}"
-        )
-    return output
+    parser.add_argument(
+        "--versions",
+        required=True,
+        help="'all' or comma-separated version labels, e.g. v1.0,v1.1",
+    )
+    parser.add_argument(
+        "--tickers",
+        help="Comma-separated tickers (default: the full WATCHLIST)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace signals already recorded in this batch (deletes their evaluations)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="Agent runs in parallel (default: 1; mind data-provider rate limits)",
+    )
+    return parser.parse_args()
 
 
-async def record_one(ticker: str, holding_days: int) -> None:
+async def main() -> int:
+    args = _parse_args()
+    setup_logging(log_level=settings.log_level, render_json=False)
+
+    tickers = args.tickers.split(",") if args.tickers else WATCHLIST
     signal_date = date.today()
 
-    output = await get_decision(ticker)
-    decision = DECISION_MAP.get(output.decision.strip().lower())
-    if decision is None:
-        raise ValueError(
-            f"Unknown decision from agent: {output.decision!r}. "
-            f"Expected one of {list(DECISION_MAP)}"
-        )
-
-    prices = load_prices(ticker, signal_date - timedelta(days=7), signal_date)
-    entry_price = nearest_price_backward(prices, signal_date)
-    if entry_price is None:
-        raise RuntimeError(
-            f"Could not fetch entry price for {ticker} near {signal_date}. "
-            "No trading data found in the last 7 days."
-        )
-
-    exit_date = signal_date + timedelta(days=holding_days)
-    confidence = (Decimal(output.confidence) / 100).quantize(Decimal("0.01"))
-
-    values = dict(
-        system_version=SYSTEM_VERSION,
-        ticker=ticker,
-        signal_date=signal_date,
-        exit_date=exit_date,
-        holding_days=holding_days,
-        decision=decision,
-        confidence=confidence,
-        rationale=output.reasoning,
-        entry_price=Decimal(str(round(entry_price, 4))),
-    )
-    async with SessionLocal() as session:
-        inserted = await upsert_signal(session, values)
-        await session.commit()
-
-    width = 55
-    print(f"\n{'=' * width}")
-    print(
-        f"  Signal {'recorded' if inserted else 'updated (same-day re-run)'} for {ticker}"
-    )
-    print(f"  Version  : {SYSTEM_VERSION}")
-    print(f"  Date     : {signal_date}  (entry)")
-    print(f"  Exit     : {exit_date}  ({holding_days} days later)")
-    print(f"  Decision : {decision}  (confidence: {output.confidence}%)")
-    print(f"  Entry    : ${entry_price:.2f}")
-    print(f"{'=' * width}")
-    print(f"  Run evaluate_signals.py on or after {exit_date} to see the result.")
-    print(f"{'=' * width}\n")
-
-
-async def main() -> None:
-    parser = argparse.ArgumentParser(description="Record a paper trading signal")
-    parser.add_argument(
-        "ticker",
-        type=str,
-        nargs="?",
-        help="Biotech stock ticker, e.g. MRNA, GILD, REGN. Omit to run the full WATCHLIST.",
-    )
-    parser.add_argument(
-        "--holding-days",
-        type=int,
-        default=7,
-        help="Holding period in calendar days (default: 7)",
-    )
-    args = parser.parse_args()
-
-    tickers = [args.ticker.upper()] if args.ticker else WATCHLIST
-    errors: list[tuple[str, str]] = []
-
     try:
-        for ticker in tickers:
-            try:
-                await record_one(ticker, args.holding_days)
-            except Exception as exc:
-                print(f"\n  [!] {ticker} failed: {exc}")
-                errors.append((ticker, str(exc)))
+        labels = resolve_labels(args.versions)
+        report = await record_batch(
+            batch=args.batch,
+            labels=labels,
+            tickers=tickers,
+            signal_date=signal_date,
+            force=args.force,
+            concurrency=args.concurrency,
+        )
+    except (BatchError, VersionError) as exc:
+        print(f"\n  [!] {exc}")
+        return 2
     finally:
         await engine.dispose()
 
-    if errors:
-        print(f"\n  {len(errors)} ticker(s) failed: {', '.join(t for t, _ in errors)}")
+    print(f"\n{'=' * 55}")
+    print(f"  Batch {args.batch}  ({signal_date})  versions: {', '.join(labels)}")
+    print(f"  Recorded : {len(report.recorded)}")
+    print(f"  Skipped  : {len(report.skipped)}  (already in this batch)")
+    print(f"  Failed   : {len(report.failed)}")
+    for label, ticker, error in report.failed:
+        print(f"    [!] {label} {ticker}: {error}")
+    print(f"{'=' * 55}")
+    if report.failed:
+        print("  Re-run the same command to retry only the failed signals.\n")
+    return 1 if report.failed else 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(asyncio.run(main()))

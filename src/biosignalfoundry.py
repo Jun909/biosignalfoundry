@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from llm_provider import llm, make_llm
 from src.agents.financial_health_agent import build_financial_health_subagent
+from src.core.subagent_capture import capture_structured_output
 from src.core.version_registry import (DEFAULT_VERSION, VersionError,
                                        get_version, verify_prompts)
 from src.core.versioning import PROMPTS
@@ -52,6 +53,11 @@ def build_agent(label: str, model=None):
         SUBAGENT_BUILDERS[name](model, PROMPTS[prompt_name])
         for name, prompt_name in config.subagents.items()
     ]
+    for subagent in subagents:
+        # Lets paper trading store each subagent's typed output; a no-op otherwise.
+        subagent["runnable"] = capture_structured_output(
+            subagent["name"], subagent["runnable"]
+        )
     return create_deep_agent(
         model=model,
         system_prompt=PROMPTS[config.supervisor_prompt],

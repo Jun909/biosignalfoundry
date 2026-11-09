@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Sequence
 
 import yfinance as yf
 
@@ -57,4 +58,19 @@ def nearest_price_backward(
         d = target_date - timedelta(days=offset)
         if d in prices:
             return prices[d]
+    return None
+
+
+def latest_common_date(
+    price_maps: Sequence[PriceMap], on_or_before: date, max_lookback: int = 7
+) -> date | None:
+    """Most recent date, up to ``max_lookback`` days back, present in every price map.
+
+    Entry prices for a stock and its benchmarks must come from the same trading
+    day, otherwise the excess return compares different windows.
+    """
+    for offset in range(max_lookback + 1):
+        d = on_or_before - timedelta(days=offset)
+        if all(d in prices for prices in price_maps):
+            return d
     return None

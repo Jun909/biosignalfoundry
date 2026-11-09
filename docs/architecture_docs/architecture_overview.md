@@ -49,6 +49,7 @@ biosignalfoundry/
 │   │   ├── rate_limiter.py       # Per-IP rate limits + global daily analysis budget (Redis)
 │   │   ├── streaming_callback.py # Callback pushing tool-progress events to the SSE stream
 │   │   ├── ticker_gate.py        # Deterministic company-name/ticker resolution + biotech gate
+│   │   ├── subagent_capture.py   # Captures each subagent's typed structured response during a run
 │   │   ├── version_registry.py   # Named system versions (v1.0, ...) as code-defined configs + DB registration
 │   │   └── versioning.py         # system_version label (git sha + prompt hash) for paper trades
 │   │
@@ -64,14 +65,17 @@ biosignalfoundry/
 │       ├── __init__.py
 │       ├── types.py              # Data structures (BacktestRequest, Signal, BacktestObservation, BacktestResult)
 │       ├── engine.py             # Evaluation engine
-│       ├── price_loader.py       # Historical price data loader
+│       ├── price_loader.py       # Historical price data loader (+ latest_common_date)
+│       ├── watchlist.py          # WATCHLIST (30 biotech tickers) and the XBI/IBB benchmarks
+│       ├── recorder.py           # record_batch: runs versions over the watchlist, stores signals
+│       ├── evaluator.py          # evaluate_matured: prices matured signals at 7/30/90 days
 │       ├── models.py             # SQLAlchemy models: SystemVersion, PaperTrade, PaperTradeEvaluation
 │       └── repository.py         # upsert_signal: re-running a batch updates instead of duplicating
 │    
 │
 ├── scripts/                      # Paper trading CLI scripts
-│   ├── record_signal.py          # Runs the agent for a ticker, logs a signal + entry price
-│   └── evaluate_signals.py       # Evaluates matured signals against actual exit prices
+│   ├── record_signal.py          # CLI for recorder.record_batch: one batch, several versions
+│   └── evaluate_signals.py       # CLI for evaluator.evaluate_matured
 │
 ├── alembic.ini                   # Alembic configuration
 ├── alembic/                      # Database migrations (Alembic, async)
@@ -156,6 +160,7 @@ Shared infrastructure used by `app.py`, the agents and the scripts. Nothing here
   - git sha: from `GIT_SHA` if set (Docker builds without `.git`), else `git rev-parse`, else `nogit`.
   - prompt hash: 8-char SHA-256 over the normalized text of every prompt in `PROMPTS`. **Register new agent prompts in `PROMPTS`** or prompt edits won't change the version.
   - `-dirty`: uncommitted tracked changes exist (untracked files are ignored).
+- **subagent_capture.py**: deepagents drops a subagent's `structured_response` and gives the supervisor only a text repr. `build_agent` wraps each subagent's runnable with `capture_structured_output`, which records the typed output into a collector opened by `capture_subagent_outputs()` (used by the recorder) and returns the result unchanged, so the supervisor's behaviour is identical. Stored in `paper_trades.agent_output.subagents`; without a collector it does nothing.
 - **version_registry.py**: the named versions used by paper trading (`VERSIONS`, `DEFAULT_VERSION`). A version is a `VersionConfig`: a supervisor prompt, enabled subagents (name → prompt name; prompt names are keys of `versioning.PROMPTS`), LLM provider/model/temperature, and a pinned `prompt_hash`. Imports no agent or LLM code.
   - `verify_prompts(label)` raises `VersionDrift` if a prompt the version uses was edited in place; copy it under a new `PROMPTS` name and register a new version instead.
   - `register_version(session, label)` inserts the `system_versions` row on first use and raises `VersionDrift` if the stored config later differs. The caller commits.
@@ -176,12 +181,13 @@ Signal evaluation framework for validating paper trading signals against price d
 - **repository.py**: `upsert_signal`; re-running the same batch/version/ticker replaces the signal and deletes its evaluations.
 - **types.py**: Core data structures — `BacktestRequest`, `Signal`, `DecisionLabel`, `BacktestObservation`, `BacktestResult`
 - **engine.py**: `run(request, signals) → BacktestResult`. For each signal, looks up entry price at `as_of_date` and exit price at `as_of_date + holding_period_days`, then computes `forward_return` and `is_correct` based on configurable `buy_threshold` / `sell_threshold`. Aggregates per-observation results into summary stats (`total_observations`, `correct_observations`, `accuracy`).
+- **watchlist.py / recorder.py**: `WATCHLIST` (30 tickers; every one must pass the ticker/sector gate and have prices) and `BENCHMARKS` (`XBI`, `IBB`). `recorder.record_batch(...)` implements the batch flow above; its pure helpers (`parse_decision`, `parse_confidence`, `extract_subagent_outputs` (text fallback), `fetch_entry_prices`) are unit tested, and the whole flow is integration tested with a fake agent and price source.
 - **price_loader.py**: `load_prices(ticker, start, end) → dict[date, float]` — fetches historical OHLCV data via MarketStack and returns a `{date: close_price}` map used by the engine.
 
 ### **scripts/**
 CLI entry points for the paper trading loop described in the README's "On Backtesting" section:
-- **record_signal.py**: Runs the agent for a ticker (or the whole watchlist), records today's price as the entry point, and upserts the signal into the `paper_trades` table (a same-day re-run replaces that day's signal).
-- **evaluate_signals.py**: Evaluates signals whose holding period has elapsed against actual exit prices, writing the result back to the same `paper_trades` row so each signal is only evaluated once.
+- **record_signal.py**: Thin CLI over `evaluation/recorder.py`: `--batch <name> --versions all|v1.0,v1.1 [--tickers ...] [--force] [--concurrency N]`. Every version runs over the watchlist on one signal date with shared entry prices for the stock, XBI and IBB (one common trading day), so versions compare stock by stock. Re-running a batch skips signals already recorded (resume after failures); `--force` replaces them and deletes their evaluations. A batch whose existing signals have a different date is refused. Exit code 1 if any signal failed, 2 for bad arguments. Run after the US market close.
+- **evaluator.py / evaluate_signals.py**: `evaluator.evaluate_matured(...)` finds every (signal, horizon in 7/30/90) whose target date (`entry_price_date` + horizon) is before today and has no `paper_trade_evaluations` row, downloads stock/XBI/IBB once per symbol, and inserts a row with the exit prices on the first common trading day on or after the target (`price_date`) plus entry prices re-fetched in the same download (`*_entry_price_adj`, split/dividend safe). Today's unfinished session is never used; horizons without a close yet stay pending, missing data is reported as failed. Inserts use `ON CONFLICT DO NOTHING`, so it is safe to run late or repeatedly. The script takes `[--batch] [--versions] [--horizons]` and exits 1 if anything failed.
 
 ### **alembic/**
 Database migrations. `alembic/env.py` reads the connection URL from `config.Settings.database_url` and the schema from `src.core.db.Base.metadata`, so models and migrations share one source of truth. `src/core/db.py` holds the async engine and session factory.
@@ -227,7 +233,7 @@ Steps 2–5 are cheap, deterministic guards in `src/core/` that run before any L
 11. The supervisor interprets the financial health score and produces a final `BioSignalFoundryOutput` (BUY/SELL/HOLD/AVOID + confidence + reasoning), which is cached in Redis and sent as the `result` event
 
 ### Paper-trade path
-`scripts/record_signal.py` calls the agent per ticker and upserts a `paper_trades` row stamped with `core.versioning.system_version()`. `scripts/evaluate_signals.py` later fills in the exit price and correctness. Both use `core.db.SessionLocal`.
+`scripts/record_signal.py` calls `evaluation.recorder.record_batch`, which builds each requested version with `build_agent(label)`, registers it in `system_versions`, fetches shared entry prices (stock, XBI, IBB) once per ticker, runs the agent per version and ticker, and upserts a `paper_trades` row holding the decision, the agent's structured output (including each subagent's result recovered from the `task` tool messages) and the entry prices. `scripts/evaluate_signals.py` (via `evaluation.evaluator`) later adds per-horizon `paper_trade_evaluations` rows. Both use `core.db.SessionLocal`.
 
 ### Data provider call chain
 ```
