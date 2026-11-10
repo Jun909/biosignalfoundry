@@ -89,7 +89,7 @@ For these reasons, the evaluation strategy used here is **paper trading**: the a
 
 > **Status:** this section describes the evaluation design we are moving to.
 > `scripts/record_signal.py` and `scripts/evaluate_signals.py` already record and price
-> batches this way; the metrics report is still to be written.
+> batches this way, and `scripts/report_metrics.py` prints the metrics below.
 
 The question evaluation answers is not "how many calls were right this week?" but
 **"is version B better than version A?"**. The system does not learn on its own; it only

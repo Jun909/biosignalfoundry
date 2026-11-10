@@ -165,3 +165,21 @@ def test_first_common_date_skips_gaps_and_today():
     )
     assert first_common_date([a, a], date(2026, 12, 6), date(2026, 12, 7)) is None
     assert first_common_date([a, {}], date(2026, 12, 6), date(2026, 12, 20)) is None
+
+
+async def test_load_return_rows_reads_the_view_and_filters(session_factory):
+    from src.evaluation.repository import count_trades, load_return_rows
+
+    await add_trade(session_factory, batch="b1")
+    await add_trade(session_factory, batch="b2")
+    await run(session_factory, ENTRY + timedelta(days=40))
+
+    async with session_factory() as session:
+        rows = await load_return_rows(session, batch="b1", horizons=[7])
+        assert len(rows) == 1
+        r = rows[0]
+        assert r.decision is DecisionLabel.BUY and r.confidence == pytest.approx(0.8)
+        assert r.forward_return == pytest.approx(55 / 50 - 1)
+        assert r.xbi_return == pytest.approx(102.5 / 100 - 1)
+        assert len(await load_return_rows(session)) == 4  # 2 trades x horizons 7 and 30
+        assert await count_trades(session, batch="b1") == {"v1.0": 1}

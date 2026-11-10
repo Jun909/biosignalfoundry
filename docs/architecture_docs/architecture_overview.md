@@ -63,19 +63,20 @@ biosignalfoundry/
 │   │
 │   └── evaluation/                # Signal evaluation framework for paper trading
 │       ├── __init__.py
-│       ├── types.py              # Data structures (BacktestRequest, Signal, BacktestObservation, BacktestResult)
-│       ├── engine.py             # Evaluation engine
+│       ├── types.py              # DecisionLabel enum
 │       ├── price_loader.py       # Historical price data loader (+ latest_common_date)
 │       ├── watchlist.py          # WATCHLIST (30 biotech tickers) and the XBI/IBB benchmarks
 │       ├── recorder.py           # record_batch: runs versions over the watchlist, stores signals
 │       ├── evaluator.py          # evaluate_matured: prices matured signals at 7/30/90 days
+│       ├── metrics.py            # pure metric functions over paper_trade_returns rows
 │       ├── models.py             # SQLAlchemy models: SystemVersion, PaperTrade, PaperTradeEvaluation
 │       └── repository.py         # upsert_signal: re-running a batch updates instead of duplicating
 │    
 │
 ├── scripts/                      # Paper trading CLI scripts
 │   ├── record_signal.py          # CLI for recorder.record_batch: one batch, several versions
-│   └── evaluate_signals.py       # CLI for evaluator.evaluate_matured
+│   ├── evaluate_signals.py       # CLI for evaluator.evaluate_matured
+│   └── report_metrics.py         # Read-only metrics report per version and horizon
 │
 ├── alembic.ini                   # Alembic configuration
 ├── alembic/                      # Database migrations (Alembic, async)
@@ -178,14 +179,14 @@ LLM prompt templates:
 ### **src/evaluation/**
 Signal evaluation framework for validating paper trading signals against price data. Evaluates how well `BUY / SELL / HOLD / AVOID` signals predicted actual forward returns:
 - **models.py**: SQLAlchemy models. `SystemVersion` (`system_versions`): registered version label + config. `PaperTrade` (`paper_trades`): one decision per `(batch, version_label, ticker)` with the agent's JSON output and entry prices for the stock, XBI and IBB. `PaperTradeEvaluation` (`paper_trade_evaluations`): one row per trade and horizon with exit prices, plus entry prices re-fetched in the same download (`*_entry_price_adj`) so splits/dividends between signal and exit cancel out. Only observations are stored; returns and verdicts are derived at report time via the `paper_trade_returns` view (created in the migration, not an ORM model), which must be used instead of the raw entry prices.
-- **repository.py**: `upsert_signal`; re-running the same batch/version/ticker replaces the signal and deletes its evaluations.
-- **types.py**: Core data structures — `BacktestRequest`, `Signal`, `DecisionLabel`, `BacktestObservation`, `BacktestResult`
-- **engine.py**: `run(request, signals) → BacktestResult`. For each signal, looks up entry price at `as_of_date` and exit price at `as_of_date + holding_period_days`, then computes `forward_return` and `is_correct` based on configurable `buy_threshold` / `sell_threshold`. Aggregates per-observation results into summary stats (`total_observations`, `correct_observations`, `accuracy`).
+- **repository.py**: `upsert_signal` (re-running the same batch/version/ticker replaces the signal and deletes its evaluations), plus the read-only `load_return_rows` and `count_trades` used by the metrics report.
+- **types.py**: `DecisionLabel` (BUY / SELL / HOLD / AVOID)
 - **watchlist.py / recorder.py**: `WATCHLIST` (30 tickers; every one must pass the ticker/sector gate and have prices) and `BENCHMARKS` (`XBI`, `IBB`). `recorder.record_batch(...)` implements the batch flow above; its pure helpers (`parse_decision`, `parse_confidence`, `extract_subagent_outputs` (text fallback), `fetch_entry_prices`) are unit tested, and the whole flow is integration tested with a fake agent and price source.
-- **price_loader.py**: `load_prices(ticker, start, end) → dict[date, float]` — fetches historical OHLCV data via MarketStack and returns a `{date: close_price}` map used by the engine.
+- **price_loader.py**: `load_prices(ticker, start, end) → dict[date, float]` — fetches historical OHLCV data via MarketStack and returns a `{date: close_price}` map used by the recorder and evaluator.
 
 ### **scripts/**
 CLI entry points for the paper trading loop described in the README's "On Backtesting" section:
+- **metrics.py / report_metrics.py**: `metrics.py` holds every metric definition as pure functions over `ReturnRow`s (a row of the `paper_trade_returns` view): excess return vs XBI/IBB, BUY vs SELL/AVOID spread, hit rate, baselines (always-BUY, always-HOLD, random, benchmark), confusion matrix, confidence calibration and loss profile, each with N and a rough 95% interval. HOLD is excluded from the headline metrics. Unit tested without a database. `repository.load_return_rows` / `count_trades` read the view; `scripts/report_metrics.py [--batch] [--versions] [--horizons] [--benchmark xbi|ibb] [--detail]` groups rows by version and horizon and prints them with evaluated-vs-recorded counts. It writes nothing.
 - **record_signal.py**: Thin CLI over `evaluation/recorder.py`: `--batch <name> --versions all|v1.0,v1.1 [--tickers ...] [--force] [--concurrency N]`. Every version runs over the watchlist on one signal date with shared entry prices for the stock, XBI and IBB (one common trading day), so versions compare stock by stock. Re-running a batch skips signals already recorded (resume after failures); `--force` replaces them and deletes their evaluations. A batch whose existing signals have a different date is refused. Exit code 1 if any signal failed, 2 for bad arguments. Run after the US market close.
 - **evaluator.py / evaluate_signals.py**: `evaluator.evaluate_matured(...)` finds every (signal, horizon in 7/30/90) whose target date (`entry_price_date` + horizon) is before today and has no `paper_trade_evaluations` row, downloads stock/XBI/IBB once per symbol, and inserts a row with the exit prices on the first common trading day on or after the target (`price_date`) plus entry prices re-fetched in the same download (`*_entry_price_adj`, split/dividend safe). Today's unfinished session is never used; horizons without a close yet stay pending, missing data is reported as failed. Inserts use `ON CONFLICT DO NOTHING`, so it is safe to run late or repeatedly. The script takes `[--batch] [--versions] [--horizons]` and exits 1 if anything failed.
 

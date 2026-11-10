@@ -57,16 +57,16 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
   adjusted entry prices for the stock, XBI and IBB, and insert a `paper_trade_evaluations`
   row (idempotent; can be run late or repeatedly)~~ ✅ Done — `scripts/evaluate_signals.py`
   over `src/evaluation/evaluator.py`; horizons count from `entry_price_date`
-* `src/evaluation/metrics.py`: pure functions over rows from `paper_trade_returns` for
+* ~~`src/evaluation/metrics.py`: pure functions over rows from `paper_trade_returns` for
   excess return, BUY vs SELL/AVOID spread, hit rate, baselines (always-BUY, always-HOLD,
   random, benchmark), confusion matrix, confidence calibration and loss profile. Unit
   tested without a database; metric definitions and thresholds live here, not in stored
-  data
-* `scripts/report_metrics.py`: queries `paper_trade_returns` (filter by batch, version
+  data~~ ✅ Done
+* ~~`scripts/report_metrics.py`: queries `paper_trade_returns` (filter by batch, version
   and horizon), feeds the rows to `metrics.py` and prints the results, including how many
   signals are evaluated per horizon so a partial 90-day result is not read as final.
-  Writes nothing. Also decide whether `src/evaluation/engine.py` and its `Backtest*`
-  types, left over from before paper trading, can be removed
+  Writes nothing~~ ✅ Done. The old `engine.py` and its `Backtest*` types, left over from
+  before paper trading, are removed
 * ~~Deterministic ticker resolution ahead of agent reasoning, instead of relying on
   the LLM to infer tickers~~ ✅ Done — see `src/core/ticker_gate.py`; input is a single
   company name or ticker, matched against the SEC company list bundled with
