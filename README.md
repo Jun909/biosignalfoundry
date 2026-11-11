@@ -85,86 +85,118 @@ There are four compounding reasons why proper historical backtesting is not feas
 
 For these reasons, the evaluation strategy used here is **paper trading**: the agent makes a decision using current data, that decision is recorded with today's price as the entry point, and it is evaluated against real prices after the holding period elapses. This is honest, reproducible, and free of look-ahead bias.
 
-## Planned Roadmap
+## Evaluation
 
-### Phase 1 — Stabilization
-* ~~Persistent storage of decisions and signals (PostgreSQL + Alembic) — also unblocks
-  the automated paper trading loop in Phase 2~~ ✅ Done — paper trades live in the
-  `paper_trades` table (`src/evaluation/models.py`, migrations in `alembic/`); re-running
-  a signal for the same ticker/day/version updates it instead of duplicating
-* ~~Integration test suite and CI/CD pipeline~~ ✅ Done — see `.github/workflows/test.yml`
-* ~~Health and readiness endpoints~~ ✅ Done — see `GET /health` and `GET /ready` in `app.py`
-* ~~Rate limiting and abuse/cost control on `/analyze` (currently unauthenticated, and
-  a cache miss triggers a paid LLM run)~~ ✅ Done — per-IP rate limits + a global daily
-  budget cap on non-cached runs, see `src/core/rate_limiter.py` and `POST /analyze` in
-  `app.py`
-* ~~Fail-fast config validation at startup (e.g. `pydantic-settings`) instead of silent
-  failures on missing or misspelled env vars~~ ✅ Done — see `Settings` in `config.py`
-* ~~Graceful Redis degradation — a cache outage should fall back to a cache miss, not
-  a 500~~ ✅ Done — `/analyze` treats Redis read/write failures as a cache miss/skip
-* ~~Frontend test suite (Vitest + React Testing Library) — currently no tests on
-  the UI at all~~ ✅ Done — see `ui/src/App.test.tsx` and
-  `ui/src/api/biosignalfoundry.test.ts`, run with `npm run test` in `ui/`
-* ~~Hardening: lint/format/type-check CI job~~ ✅ Done (frontend) — `.github/workflows/test.yml`
-  now runs `npm run lint`, `npm run build`, `npm run test`; Python `black`/`isort`/type-check
-  still not enforced in CI, ~~fix the `alphavintage` → `alphavantage`
-  naming~~ ✅ Done, ~~rename `src/backtesting/` → `src/evaluation/` to match the "no classic
-  backtesting" design decision below~~ ✅ Done
+> **Status:** this section describes the evaluation design we are moving to.
+> `scripts/record_signal.py` and `scripts/evaluate_signals.py` already record and price
+> batches this way, and `scripts/report_metrics.py` prints the metrics below.
 
-### Phase 2 — Signal Completeness
-* Wire remaining subagents: clinical (OpenFDA), macro (FRED), sentiment (Finnhub)
-* Paper trading loop: record decisions and track returns over time (manual today via
-  `scripts/record_signal.py` / `scripts/evaluate_signals.py`, both backed by Postgres)
-* Automate the paper trading loop to run on a schedule instead of by hand
-  (mechanism TBD; depends on Phase 1's persistent storage)
-* Deterministic ticker resolution (e.g. AlphaVantage symbol search) ahead of agent
-  reasoning, instead of relying on the LLM to infer tickers
-* Reject unresolvable or non-biotech queries before invoking the agent — a ticker
-  + sector gate (Finnhub `finnhubIndustry`) ahead of the paid LLM call, doubling as
-  cost control
-* System/prompt versioning derived automatically (git SHA + prompt hash) instead of
-  the manually-bumped `SYSTEM_VERSION` constant
-* Benchmark comparison in evaluation (always-BUY, random, sector return) so paper
-  trading accuracy is measured against a baseline instead of read in isolation
-* RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
-* Data quality validation layer
+The question evaluation answers is not "how many calls were right this week?" but
+**"is version B better than version A?"**. The system does not learn on its own; it only
+changes when we change it (a new subagent, tool, prompt or model), so the useful
+comparison is between versions, not along the calendar.
 
-### Phase 3 — Scalability
-* Async task queue for agent execution (Celery + Redis)
-* Circuit breakers and retry logic per data provider
-* Move data-provider and Redis calls to true async I/O instead of blocking the
-  event loop
+### Pipeline
 
-### Phase 4 — Observability
-* LLM tracing (LangSmith or Langfuse)
-* Metrics and centralized log aggregation
-* Cost and token usage tracking per request
+```mermaid
+flowchart TD
+    V["Registered versions<br/>v1.0, v1.1, ... (code)"]
+    W["Watchlist: 30 biotech tickers<br/>+ XBI / IBB benchmarks"]
 
-### Phase 5 — ML Feedback Loop
-* Outcome tracking: link paper trades to actual price outcomes
-* A/B testing across prompt variants (building on the deterministic versioning
-  from Phase 2)
-* Fine-tuning on accumulated decision/outcome data
+    V --> R
+    W --> R
+    R["<b>record_signal.py</b><br/>run every version on the same day<br/>and the same entry prices"]
+    R --> PT[("paper_trades<br/>decision, confidence, rationale,<br/>subagent outputs, entry prices")]
 
-### Phase 6 — Trust & Product Surface
-* Public track record dashboard showing paper trading performance, wins and
-  losses included
-* Surface the signal-level reasoning breakdown in the UI, not just the final
-  decision text
+    PT -- "7 / 30 / 90 days later" --> E
+    E["<b>evaluate_signals.py</b><br/>exit prices + re-fetched<br/>split-adjusted entry prices"]
+    E --> EV[("paper_trade_evaluations<br/>one row per signal and horizon")]
 
-## Beyond MVP / Long-Term Vision
-Directional ideas for after Phases 1–6 are done — not scoped or scheduled yet,
-kept separate from the roadmap above on purpose.
+    PT --> VW
+    EV --> VW
+    VW{{"paper_trade_returns view<br/>forward, XBI, IBB and excess returns"}}
 
-* **User accounts & personal dashboards** — auth, saved watchlists, per-user
-  decision history
-* **Automated monitoring & notifications** — scheduled/event-driven checks over
-  a user's watchlist, pushed via email
-* **AI with memory** — recommendations informed by a user's history and
-  preferences, not just a single stateless query (depends on user accounts
-  existing first)
-* **Discovery / news feed** — surfacing new biotech companies and sector news,
-  not just answering direct queries
+    VW --> M["<b>metrics.py</b><br/>pure functions"]
+    M --> RP["<b>report_metrics.py</b>"]
+    RP --> OUT["Per-version, per-horizon report<br/>spread, hit rate, baselines, confusion matrix,<br/>calibration, loss profile"]
+```
+
+Only observations (decisions and prices) are stored. Everything derived is computed at
+report time.
+
+### Versions
+
+Every meaningful change to the system is a named version (`v1.0`, `v1.1`, ...), for
+example adding a subagent or a tool, or changing a prompt or the LLM. A version is a
+**configuration** (enabled subagents and tools, prompts, LLM provider and model), registered
+with a label and a description. The git SHA and prompt hashes are recorded as metadata, but
+the label is the identifier, so the same codebase can run any registered version.
+
+### Parallel evaluation
+
+Instead of running paper trading on a weekly schedule, we evaluate versions in **parallel
+batches**:
+
+1. Pick a signal date and run every version to be compared against the same watchlist on
+   that day, so all versions share the same entry prices and the same market conditions.
+2. Score each signal at several horizons (**7, 30 and 90 days**) as they mature, so short
+   horizons give early feedback while the 90-day results complete in the background.
+3. Repeat for a few batches (for example monthly), since one batch is a single market
+   window and the stocks within it are correlated. More batches and a larger watchlist
+   matter more than more frequent runs.
+
+Because versions are compared on the same dates and tickers, differences can be read
+stock by stock rather than only in aggregate. LLM output varies between runs, so we
+measure that noise (the same version run twice) before reading small differences
+between versions as real.
+
+### Metrics
+
+* **Benchmark return (XBI and IBB)** — each signal's forward return is compared with the
+  return of the XBI (equal-weighted biotech ETF) and IBB (cap-weighted) over the same
+  window, giving an **excess return** that separates stock-picking from a sector-wide move.
+* **Spread** — average forward return of BUY calls minus that of SELL/AVOID calls. The
+  headline metric: a system with skill should favour stocks that outperform the ones it
+  dislikes, regardless of market direction. Always reported with the BUY and SELL/AVOID
+  counts.
+* **Hit rate** — BUY beating the benchmark and SELL/AVOID trailing it, computed per
+  horizon and per decision type. HOLD is left out of the headline number, since it is
+  rewarded for the stock simply not moving.
+* **Baselines** — every result is shown next to simple strategies (always-BUY, always-HOLD,
+  random, the benchmark itself), with N and a confidence interval, so accuracy is never
+  read in isolation.
+* **Confusion matrix** — decision (BUY / HOLD / SELL+AVOID) against realised outcome
+  (up / flat / down, relative to the benchmark). A diagnostic for systematic habits, such as
+  never saying SELL; not used to rank versions.
+* **Confidence calibration** — whether high-confidence calls do better than low-confidence ones.
+* **Loss profile and drawdown** — worst single-call loss and average win versus average
+  loss. Maximum drawdown is only meaningful for a simulated basket of the BUY calls over a
+  holding period, so it is a later addition rather than a per-signal metric.
+
+Derived flags such as "correct" or "excess return" are computed from stored data, not
+stored as verdicts, so definitions and thresholds can change without re-running anything.
+
+### Data stored
+
+* **Versions:** label, description, git SHA, prompt hashes, LLM provider and model, enabled
+  subagents and tools.
+* **Signals:** version, ticker, signal date, decision, confidence, rationale, the agent's
+  full structured output (including each subagent's output), entry price, and XBI and IBB
+  prices on the signal date.
+* **Evaluations (one per signal and horizon):** the price date actually used, exit price,
+  and XBI and IBB exit prices.
+
+## Roadmap
+
+The full, phase-by-phase plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+* **Phase 1 — Stabilization:** persistence, CI, health checks, rate limiting, config validation (done)
+* **Phase 2 — Signal Completeness:** remaining subagents, version registry, new evaluation schema and scripts (all metrics above), SEC-filing RAG (in progress)
+* **Phase 3 — Scalability:** async task queue, circuit breakers, true async I/O
+* **Phase 4 — Observability & Parallel Evaluation:** Langfuse tracing, metrics, cost and token tracking, then parallel multi-version evaluation runs
+* **Phase 5 — ML Feedback Loop:** outcome tracking, prompt A/B testing, fine-tuning
+* **Phase 6 — Trust & Product Surface:** public track record, signal-level reasoning in the UI
+* **Beyond MVP:** user accounts, monitoring, AI with memory, discovery feed (unscheduled)
 
 ## Disclaimer
 Nothing in this repository constitutes to financial advice or a recommendation to trade securities.

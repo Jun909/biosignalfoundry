@@ -1,11 +1,16 @@
-from deepagents import create_deep_agent
+from typing import Callable
+
+from deepagents import CompiledSubAgent, create_deep_agent
 from langchain.agents.structured_output import AutoStrategy
 from pydantic import BaseModel, Field
 
-from llm_provider import llm
-from src.agents.financial_health_agent import financial_health_subagent
+from llm_provider import llm, make_llm
+from src.agents.financial_health_agent import build_financial_health_subagent
+from src.core.subagent_capture import capture_structured_output
+from src.core.version_registry import (DEFAULT_VERSION, VersionError,
+                                       get_version, verify_prompts)
+from src.core.versioning import PROMPTS
 from src.middleware.logging_middleware import LoggingMiddleware
-from src.prompts.biosignalfoundry_prompt import biosignalfoundry_prompt
 
 
 class BioSignalFoundryOutput(BaseModel):
@@ -17,10 +22,51 @@ class BioSignalFoundryOutput(BaseModel):
     )
 
 
-biosignalfoundry = create_deep_agent(
-    model=llm,
-    system_prompt=biosignalfoundry_prompt,
-    subagents=[financial_health_subagent],
-    response_format=AutoStrategy(BioSignalFoundryOutput),
-    middleware=[LoggingMiddleware(agent_name="biosignalfoundry")],
-)
+# Subagent name (as used in version configs) -> builder(llm, system_prompt).
+# The only list of subagents: register a new one here.
+SUBAGENT_BUILDERS: dict[str, Callable[..., CompiledSubAgent]] = {
+    "financial_health": build_financial_health_subagent,
+}
+
+
+def build_agent(label: str, model=None):
+    """Build the supervisor agent for a registered version.
+
+    The prompts are checked against the version's pinned hash first, so an
+    in-place prompt edit raises ``VersionDrift`` instead of silently changing the
+    version. ``model`` overrides the version's LLM; paper trading never passes it,
+    so a recorded signal always comes from the LLM the version pins.
+    """
+    config = get_version(label)
+    unknown = config.subagents.keys() - SUBAGENT_BUILDERS.keys()
+    if unknown:
+        raise VersionError(
+            f"{label} enables subagents with no builder: {sorted(unknown)}. "
+            "Register them in SUBAGENT_BUILDERS."
+        )
+    verify_prompts(label)
+
+    if model is None:
+        model = make_llm(config.llm.provider, config.llm.model, config.llm.temperature)
+
+    subagents = [
+        SUBAGENT_BUILDERS[name](model, PROMPTS[prompt_name])
+        for name, prompt_name in config.subagents.items()
+    ]
+    for subagent in subagents:
+        # Lets paper trading store each subagent's typed output; a no-op otherwise.
+        subagent["runnable"] = capture_structured_output(
+            subagent["name"], subagent["runnable"]
+        )
+    return create_deep_agent(
+        model=model,
+        system_prompt=PROMPTS[config.supervisor_prompt],
+        subagents=subagents,
+        response_format=AutoStrategy(BioSignalFoundryOutput),
+        middleware=[LoggingMiddleware(agent_name="biosignalfoundry")],
+    )
+
+
+# The API serves the default version with the LLM chosen by LLM_PROVIDER, so local
+# development can run on Ollama without a DeepSeek key.
+biosignalfoundry = build_agent(DEFAULT_VERSION, model=llm)

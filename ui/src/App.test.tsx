@@ -26,7 +26,7 @@ const SAMPLE_RESULT: AnalysisResult = {
   reasoning: "Strong pipeline",
 };
 
-const INPUT_PLACEHOLDER = /ask about any biotech stock/i;
+const INPUT_PLACEHOLDER = /company name or ticker/i;
 
 afterEach(() => {
   cleanup();
@@ -38,8 +38,29 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByPlaceholderText(INPUT_PLACEHOLDER)).toBeInTheDocument();
-    expect(screen.getByText("Should I invest in Moderna?")).toBeInTheDocument();
+    expect(screen.getByText("Moderna")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ANALYZE" })).toBeDisabled();
+  });
+
+  it("asks for a company name or ticker and caps the input length", () => {
+    render(<App />);
+
+    expect(screen.getByText(/not a full question/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(INPUT_PLACEHOLDER)).toHaveAttribute(
+      "maxlength",
+      "60",
+    );
+  });
+
+  it("trims whitespace before submitting", async () => {
+    mockedAnalyzeStock.mockResolvedValue(SAMPLE_RESULT);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByPlaceholderText(INPUT_PLACEHOLDER), "  nvda  ");
+    await user.click(screen.getByRole("button", { name: "ANALYZE" }));
+
+    expect(mockedAnalyzeStock).toHaveBeenCalledWith("nvda", expect.any(Function));
   });
 
   it("submits the typed query and renders the returned result", async () => {
@@ -138,12 +159,9 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByText("Should I invest in Moderna?"));
+    await user.click(screen.getByText("Moderna"));
 
-    expect(mockedAnalyzeStock).toHaveBeenCalledWith(
-      "Should I invest in Moderna?",
-      expect.any(Function),
-    );
+    expect(mockedAnalyzeStock).toHaveBeenCalledWith("Moderna", expect.any(Function));
     await waitFor(() => expect(screen.getByText("MRNA")).toBeInTheDocument());
   });
 

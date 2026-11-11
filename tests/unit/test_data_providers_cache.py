@@ -72,6 +72,20 @@ class TestFinnHubCompanyProfile2:
             json.dumps(result),
         )
 
+    def test_failed_api_call_is_not_cached(self):
+        """_call turns API errors (e.g. a 429) into {"ok": False}. Caching that
+        would serve the failure for a full day."""
+        failure = {"ok": False, "data": [], "error": "429 Too Many Requests"}
+        self.client._call.return_value = failure
+        with (
+            patch.object(finnhub_module.redis_client, "get", return_value=None),
+            patch.object(finnhub_module.redis_client, "setex") as mock_setex,
+        ):
+            result = self.client.company_profile2("NVDA")
+
+        assert result == failure
+        mock_setex.assert_not_called()
+
     def test_redis_read_failure_falls_back_to_cache_miss(self):
         with (
             patch.object(

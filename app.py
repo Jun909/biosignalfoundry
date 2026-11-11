@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import json
 from typing import List
 
@@ -19,6 +18,9 @@ from src.core.rate_limiter import (check_and_consume_daily_budget,
                                    check_rate_limit)
 from src.core.redis_client import redis_client
 from src.core.streaming_callback import StreamingProgressCallback
+from src.core.ticker_gate import (GateUnavailable, TickerRejected,
+                                  resolve_biotech_ticker)
+from src.core.version_registry import DEFAULT_VERSION
 
 load_dotenv()
 logger = setup_logging(
@@ -67,6 +69,7 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
         "analyze request received", user_input=request.user_input, client_ip=client_ip
     )
 
+    # check rate limit
     try:
         allowed, retry_after = check_rate_limit(
             client_ip, settings.rate_limit_per_minute, settings.rate_limit_per_day
@@ -82,21 +85,39 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
             headers={"Retry-After": str(retry_after)},
         )
 
-    input_hash = hashlib.sha256(request.user_input.strip().lower().encode()).hexdigest()
-    cache_key = f"biosignalfoundry:analyze:{input_hash}"
+    # check if the user input resolves to a valid biotech ticker
+    try:
+        resolved = await resolve_biotech_ticker(request.user_input)
+    except TickerRejected as e:
+        logger.info(
+            "analyze request rejected", user_input=request.user_input, reason=str(e)
+        )
+        raise HTTPException(status_code=422, detail=str(e))
+    except GateUnavailable as e:
+        logger.warning("ticker gate unavailable", error=str(e))
+        raise HTTPException(
+            status_code=503,
+            detail="Couldn't verify that company right now, please try again shortly.",
+        )
+    ticker = resolved.ticker
+
+    # Keyed on the resolved ticker so "Moderna", "moderna stock" and "MRNA" share one entry,
+    # and on the version so changing DEFAULT_VERSION never serves the old version's answer.
+    cache_key = f"biosignalfoundry:analyze:{DEFAULT_VERSION}:{ticker}"
     try:
         cached = redis_client.get(cache_key)
     except RedisError as e:
         logger.warning("cache read failed, treating as cache miss", error=str(e))
         cached = None
     if cached:
-        logger.info("cache hit", user_input=request.user_input)
+        logger.info("cache hit", ticker=ticker)
 
         async def cached_stream():
             yield f"data: {cached}\n\n"
 
         return StreamingResponse(cached_stream(), media_type="text/event-stream")
 
+    # check daily budget cap
     try:
         under_budget = check_and_consume_daily_budget(
             settings.daily_analysis_budget_cap
@@ -114,10 +135,11 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
     queue: asyncio.Queue = asyncio.Queue()
     callback = StreamingProgressCallback(queue)
 
+    # actually call the real agent
     async def run_agent():
         try:
             result = await biosignalfoundry.ainvoke(
-                {"messages": [HumanMessage(request.user_input)]},
+                {"messages": [HumanMessage(f"Analyze {ticker}")]},
                 config={"callbacks": [callback]},
             )
             structured = result.get("structured_response")

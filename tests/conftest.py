@@ -40,6 +40,9 @@ os.environ.setdefault("POSTGRES_DB", "test")
 if "llm_provider" not in sys.modules:
     _llm_stub = ModuleType("llm_provider")
     _llm_stub.llm = MagicMock(name="mock_llm")  # type: ignore[attr-defined]
+    _llm_stub.make_llm = MagicMock(  # type: ignore[attr-defined]
+        name="make_llm", return_value=MagicMock(name="mock_versioned_llm")
+    )
     sys.modules["llm_provider"] = _llm_stub
 
 # ---------------------------------------------------------------------------
