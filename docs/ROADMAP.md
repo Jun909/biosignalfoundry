@@ -81,6 +81,7 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
   paper trades are labelled `<git sha>-<prompt hash>` (plus `-dirty` for uncommitted
   changes). Superseded as the identifier by the explicit version registry above; it
   stays as metadata (`git_sha`, `prompt_hash`)
+* Test run evaluation for v1.0
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
 * Data quality validation layer
 * Define versioning
@@ -96,7 +97,6 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
 * Metrics and centralized log aggregation
 * Cost and token usage tracking per request (Langfuse), so versions can be compared on
   cost as well as accuracy
-* Test run evaluation for v1.0
 * Consideration of input snapshot for parallel version evaluation
 * Parallel version evaluation instead of a scheduled weekly loop: once all subagents are
   wired and the versions are assigned (Phase 2) and cost tracking is in place, run every

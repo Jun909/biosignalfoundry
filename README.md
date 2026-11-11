@@ -96,6 +96,34 @@ The question evaluation answers is not "how many calls were right this week?" bu
 changes when we change it (a new subagent, tool, prompt or model), so the useful
 comparison is between versions, not along the calendar.
 
+### Pipeline
+
+```mermaid
+flowchart TD
+    V["Registered versions<br/>v1.0, v1.1, ... (code)"]
+    W["Watchlist: 30 biotech tickers<br/>+ XBI / IBB benchmarks"]
+
+    V --> R
+    W --> R
+    R["<b>record_signal.py</b><br/>run every version on the same day<br/>and the same entry prices"]
+    R --> PT[("paper_trades<br/>decision, confidence, rationale,<br/>subagent outputs, entry prices")]
+
+    PT -- "7 / 30 / 90 days later" --> E
+    E["<b>evaluate_signals.py</b><br/>exit prices + re-fetched<br/>split-adjusted entry prices"]
+    E --> EV[("paper_trade_evaluations<br/>one row per signal and horizon")]
+
+    PT --> VW
+    EV --> VW
+    VW{{"paper_trade_returns view<br/>forward, XBI, IBB and excess returns"}}
+
+    VW --> M["<b>metrics.py</b><br/>pure functions"]
+    M --> RP["<b>report_metrics.py</b>"]
+    RP --> OUT["Per-version, per-horizon report<br/>spread, hit rate, baselines, confusion matrix,<br/>calibration, loss profile"]
+```
+
+Only observations (decisions and prices) are stored. Everything derived is computed at
+report time.
+
 ### Versions
 
 Every meaningful change to the system is a named version (`v1.0`, `v1.1`, ...), for
