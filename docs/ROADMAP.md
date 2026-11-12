@@ -84,7 +84,10 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
 * Test run evaluation for v1.0
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
 * Data quality validation layer
-* Define versioning
+* ~~Define versioning~~ ✅ Done (policy) — MAJOR/MINOR/PATCH bump rules are in the
+  "Versions" section of `AGENTS.md`. Still open: a tool manifest in the version config
+  (tools are not captured today), `parent`/`status` fields, and renaming `v1.0` to
+  `v1.0.0` (needs a migration)
 
 ## Phase 3 — Scalability
 * Async task queue for agent execution (Celery + Redis)

@@ -59,6 +59,20 @@ Every change that alters what the system decides is a new **version** (`v1.0`, `
 Versions are defined in code in `src/core/version_registry.py` and compared by running them
 in parallel paper-trading batches (see README "Evaluation"), so a version must stay
 reproducible once it has trades.
+- **Numbering** (`vMAJOR.MINOR.PATCH`). Versions are parallel experiments, not a linear
+  release line: the number says what differs from the version it was derived from, not
+  that it is better. Bump by the *highest* kind of change made:
+  - MAJOR: a subagent is added or removed, or the supervisor structure or output schema
+    changes (the set of signals changes).
+  - MINOR: a subagent's tools or data sources change (a renamed subagent such as
+    `financial_health_v2`), including validation that changes what the LLM sees.
+  - PATCH: prompt text, LLM or temperature only (the cleanest A/B).
+  - No new version for changes that don't alter decisions (description wording, or a bug
+    fix meant to apply to every version).
+  Put the parent and what changed in the new entry's `description`, e.g.
+  `"v1.1.0: v1.0.0 + macro subagent"`. The existing `v1.0` is `v1.0.0` in this scheme;
+  renaming the label needs a migration (it is the `system_versions` primary key) and is
+  not done yet, so new versions use the three-part form.
 - **Never edit in place** a prompt a registered version uses, or its `VERSIONS` entry. Prompts
   are pinned by hash: an edit raises `VersionDrift`, `build_agent` refuses to build (so the API
   won't start), and `register_version` refuses a changed config. Copy the prompt under a new
