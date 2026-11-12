@@ -18,8 +18,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
-# Create a non-root user
-RUN addgroup --system app && adduser --system --ingroup app app
+# Create a non-root user with a real, writable home. `adduser --system` defaults
+# to /nonexistent, which breaks edgartools (it mkdirs ~/.edgar at import time).
+RUN addgroup --system app \
+    && adduser --system --ingroup app --home /home/app app \
+    && mkdir -p /home/app/.edgar \
+    && chown -R app:app /home/app
+
+ENV HOME=/home/app \
+    EDGAR_LOCAL_DATA_DIR=/home/app/.edgar
 
 WORKDIR /app
 
