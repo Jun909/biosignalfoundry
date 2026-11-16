@@ -33,7 +33,7 @@ from src.evaluation.types import DecisionLabel
 async def session(engine):
     async with AsyncSession(engine, expire_on_commit=False) as session:
         # signals reference a registered version
-        for label in ("v1.0", "v2.0"):
+        for label in ("v1.0.0", "v2.0"):
             session.add(
                 SystemVersion(label=label, description=f"test {label}", config={})
             )
@@ -44,7 +44,7 @@ async def session(engine):
 def make_values(**overrides) -> dict:
     values = dict(
         batch="2026-05-a",
-        version_label="v1.0",
+        version_label="v1.0.0",
         ticker="MRNA",
         signal_date=date(2026, 5, 25),
         decision=DecisionLabel.BUY,
@@ -243,7 +243,7 @@ async def test_returns_view_uses_adjusted_entry_prices(session):
     assert row["excess_return_xbi"] == pytest.approx(
         Decimal("1.25") - Decimal("91") / Decimal("90")
     )
-    assert row["version_label"] == "v1.0" and row["horizon_days"] == 7
+    assert row["version_label"] == "v1.0.0" and row["horizon_days"] == 7
 
 
 async def test_returns_view_omits_unevaluated_trades(session):
@@ -259,23 +259,23 @@ async def test_returns_view_omits_unevaluated_trades(session):
 # ---------------------------------------------------------------------------
 async def test_register_version_roundtrips_through_postgres(engine):
     async with AsyncSession(engine, expire_on_commit=False) as first:
-        await vr.register_version(first, "v1.0")
+        await vr.register_version(first, "v1.0.0")
         await first.commit()
 
     # A fresh session reads the JSONB back from the database, so equality below
     # proves the stored config really matches the in-code snapshot.
     async with AsyncSession(engine, expire_on_commit=False) as second:
-        row = await vr.register_version(second, "v1.0")
-        assert row.config == vr.get_version("v1.0").snapshot()
+        row = await vr.register_version(second, "v1.0.0")
+        assert row.config == vr.get_version("v1.0.0").snapshot()
         assert await count_rows(second, SystemVersion) == 1
 
 
 async def test_register_version_detects_drift_in_stored_row(engine):
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        row = await vr.register_version(session, "v1.0")
+        row = await vr.register_version(session, "v1.0.0")
         row.config = {**row.config, "subagents": {}}
         await session.commit()
 
     async with AsyncSession(engine, expire_on_commit=False) as session:
         with pytest.raises(vr.VersionDrift):
-            await vr.register_version(session, "v1.0")
+            await vr.register_version(session, "v1.0.0")

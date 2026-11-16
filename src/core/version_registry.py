@@ -1,5 +1,5 @@
 """
-Registry of named system versions (v1.0, v1.1, ...) used by paper trading.
+Registry of named system versions (v1.0.0, v1.0.1, ...) used by paper trading.
 
 A version is a *configuration*: which subagents are enabled, which prompts they
 use, and which LLM runs them. The label is the identifier; the git SHA recorded
@@ -75,7 +75,7 @@ class VersionConfig(BaseModel):
 
 
 VERSIONS: dict[str, VersionConfig] = {
-    "v1.0": VersionConfig(
+    "v1.0.0": VersionConfig(
         description="Baseline: supervisor + financial health subagent only",
         supervisor_prompt="biosignalfoundry",
         subagents={"financial_health": "financial_health_agent"},
@@ -86,7 +86,7 @@ VERSIONS: dict[str, VersionConfig] = {
 
 # Version the API serves. Include the label in the /analyze cache key so changing
 # this cannot return a decision made by the previous default.
-DEFAULT_VERSION = "v1.0"
+DEFAULT_VERSION = "v1.0.0"
 
 
 def _validate_registry() -> None:
@@ -114,7 +114,7 @@ def get_version(label: str) -> VersionConfig:
 
 
 def resolve_labels(spec: str) -> list[str]:
-    """Parse a CLI value: ``all`` or comma-separated labels (``v1.0,v1.1``)."""
+    """Parse a CLI value: ``all`` or comma-separated labels (``v1.0.0,v1.0.1``)."""
     if spec.strip().lower() == "all":
         return list(VERSIONS)
     labels = [part.strip() for part in spec.split(",") if part.strip()]

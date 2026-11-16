@@ -55,7 +55,7 @@ Project philosophy: `README.md`. Roadmap: `docs/ROADMAP.md`.
   on a new day.
 
 ## Versions: wiring a new agent, tool or version
-Every change that alters what the system decides is a new **version** (`v1.0`, `v1.1`, ...).
+Every change that alters what the system decides is a new **version** (`v1.0.0`, `v1.0.1`, ...).
 Versions are defined in code in `src/core/version_registry.py` and compared by running them
 in parallel paper-trading batches (see README "Evaluation"), so a version must stay
 reproducible once it has trades.
@@ -70,9 +70,8 @@ reproducible once it has trades.
   - No new version for changes that don't alter decisions (description wording, or a bug
     fix meant to apply to every version).
   Put the parent and what changed in the new entry's `description`, e.g.
-  `"v1.1.0: v1.0.0 + macro subagent"`. The existing `v1.0` is `v1.0.0` in this scheme;
-  renaming the label needs a migration (it is the `system_versions` primary key) and is
-  not done yet, so new versions use the three-part form.
+  `"v1.1.0: v1.0.0 + macro subagent"`. Labels are always three-part; the baseline is
+  `v1.0.0`.
 - **Never edit in place** a prompt a registered version uses, or its `VERSIONS` entry. Prompts
   are pinned by hash: an edit raises `VersionDrift`, `build_agent` refuses to build (so the API
   won't start), and `register_version` refuses a changed config. Copy the prompt under a new

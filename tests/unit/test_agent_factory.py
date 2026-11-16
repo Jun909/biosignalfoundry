@@ -52,9 +52,9 @@ def test_module_level_agent_is_the_default_version_on_the_env_llm():
 def test_build_agent_passes_version_prompts_and_subagents(
     create_deep_agent, make_llm, builders
 ):
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
 
-    agent = bsf.build_agent("v1.0")
+    agent = bsf.build_agent("v1.0.0")
 
     assert agent is create_deep_agent.return_value
     kwargs = create_deep_agent.call_args.kwargs
@@ -69,9 +69,9 @@ def test_build_agent_passes_version_prompts_and_subagents(
 def test_build_agent_uses_the_llm_pinned_by_the_version(
     create_deep_agent, make_llm, builders
 ):
-    llm_config = vr.get_version("v1.0").llm
+    llm_config = vr.get_version("v1.0.0").llm
 
-    bsf.build_agent("v1.0")
+    bsf.build_agent("v1.0.0")
 
     make_llm.assert_called_once_with(
         llm_config.provider, llm_config.model, llm_config.temperature
@@ -83,7 +83,7 @@ def test_build_agent_model_override_skips_make_llm(
 ):
     override = MagicMock(name="override_llm")
 
-    bsf.build_agent("v1.0", model=override)
+    bsf.build_agent("v1.0.0", model=override)
 
     make_llm.assert_not_called()
     assert create_deep_agent.call_args.kwargs["model"] is override
@@ -99,7 +99,7 @@ def test_build_agent_enables_only_the_versions_subagents(
         description="supervisor only",
         supervisor_prompt="biosignalfoundry",
         subagents={},
-        llm=vr.get_version("v1.0").llm,
+        llm=vr.get_version("v1.0.0").llm,
         prompt_hash=prompt_hash({"biosignalfoundry": PROMPTS["biosignalfoundry"]}),
     )
     monkeypatch.setitem(vr.VERSIONS, "v0.1", none_enabled)
@@ -114,7 +114,7 @@ def test_build_agent_enables_only_the_versions_subagents(
 def test_build_agent_rejects_a_subagent_without_a_builder(
     create_deep_agent, make_llm, builders, monkeypatch
 ):
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
     bad = config.model_copy(
         update={"subagents": {"astrology": "financial_health_agent"}}
     )
@@ -140,7 +140,7 @@ def test_build_agent_refuses_to_build_after_a_prompt_edit(
     monkeypatch.setitem(PROMPTS, "financial_health_agent", "edited in place")
 
     with pytest.raises(vr.VersionDrift):
-        bsf.build_agent("v1.0")
+        bsf.build_agent("v1.0.0")
 
     # nothing expensive happens before the drift check
     make_llm.assert_not_called()

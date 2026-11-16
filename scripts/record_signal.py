@@ -11,8 +11,8 @@ a full day's close.
 
 Usage:
     uv run python scripts/record_signal.py --batch 2026-11-a --versions all
-    uv run python scripts/record_signal.py --batch 2026-11-a --versions v1.0,v1.1
-    uv run python scripts/record_signal.py --batch test-1 --versions v1.0 --tickers MRNA,GILD
+    uv run python scripts/record_signal.py --batch 2026-11-a --versions v1.0.0,v1.0.1
+    uv run python scripts/record_signal.py --batch test-1 --versions v1.0.0 --tickers MRNA,GILD
 """
 
 import argparse
@@ -46,7 +46,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--versions",
         required=True,
-        help="'all' or comma-separated version labels, e.g. v1.0,v1.1",
+        help="'all' or comma-separated version labels, e.g. v1.0.0,v1.0.1",
     )
     parser.add_argument(
         "--tickers",

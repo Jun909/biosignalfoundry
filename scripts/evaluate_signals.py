@@ -11,7 +11,7 @@ not stored; see report_metrics.py.
 Usage:
     uv run python scripts/evaluate_signals.py
     uv run python scripts/evaluate_signals.py --batch 2026-11-a
-    uv run python scripts/evaluate_signals.py --versions v1.0 --horizons 7,30
+    uv run python scripts/evaluate_signals.py --versions v1.0.0 --horizons 7,30
 """
 
 import argparse

@@ -100,7 +100,7 @@ comparison is between versions, not along the calendar.
 
 ```mermaid
 flowchart TD
-    V["Registered versions<br/>v1.0, v1.1, ... (code)"]
+    V["Registered versions<br/>v1.0.0, v1.0.1, ... (code)"]
     W["Watchlist: 30 biotech tickers<br/>+ XBI / IBB benchmarks"]
 
     V --> R
@@ -126,7 +126,7 @@ report time.
 
 ### Versions
 
-Every meaningful change to the system is a named version (`v1.0`, `v1.1`, ...), for
+Every meaningful change to the system is a named version (`v1.0.0`, `v1.0.1`, ...), for
 example adding a subagent or a tool, or changing a prompt or the LLM. A version is a
 **configuration** (enabled subagents and tools, prompts, LLM provider and model), registered
 with a label and a description. The git SHA and prompt hashes are recorded as metadata, but

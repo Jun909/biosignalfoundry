@@ -19,7 +19,7 @@ from src.evaluation.types import DecisionLabel
 
 
 class SystemVersion(Base):
-    """A named, registered configuration of the system (v1.0, v1.1, ...).
+    """A named, registered configuration of the system (v1.0.0, v1.0.1, ...).
 
     Treat a row as immutable once signals reference it: change the config by
     registering a new version instead.

@@ -14,7 +14,7 @@ def make_config(**overrides) -> vr.VersionConfig:
         supervisor_prompt="biosignalfoundry",
         subagents={"financial_health": "financial_health_agent"},
         llm=vr.LLMConfig(provider="deepseek", model="deepseek-chat", temperature=0.1),
-        prompt_hash=vr.current_prompt_hash("v1.0"),
+        prompt_hash=vr.current_prompt_hash("v1.0.0"),
     )
     values.update(overrides)
     return vr.VersionConfig(**values)
@@ -42,7 +42,7 @@ def test_default_version_is_registered():
 
 
 def test_baseline_version_is_financial_health_only():
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
     assert list(config.subagents) == ["financial_health"]
     assert config.llm.provider == "deepseek"
 
@@ -93,7 +93,7 @@ def test_prompt_hash_must_be_eight_characters():
 # Lookup helpers
 # ---------------------------------------------------------------------------
 def test_get_version_unknown_lists_available_versions():
-    with pytest.raises(vr.UnknownVersion, match="v9.9.*Available: v1.0"):
+    with pytest.raises(vr.UnknownVersion, match="v9.9.*Available: v1.0.0"):
         vr.get_version("v9.9")
 
 
@@ -103,8 +103,8 @@ def test_resolve_labels_all_returns_every_version():
 
 
 def test_resolve_labels_splits_strips_and_dedupes(monkeypatch):
-    monkeypatch.setitem(vr.VERSIONS, "v1.1", make_config())
-    assert vr.resolve_labels("v1.1, v1.0 ,v1.1") == ["v1.1", "v1.0"]
+    monkeypatch.setitem(vr.VERSIONS, "v1.0.1", make_config())
+    assert vr.resolve_labels("v1.0.1, v1.0.0 ,v1.0.1") == ["v1.0.1", "v1.0.0"]
 
 
 @pytest.mark.parametrize("spec", ["", " , ", ","])
@@ -115,7 +115,7 @@ def test_resolve_labels_rejects_empty(spec):
 
 def test_resolve_labels_rejects_unknown_label():
     with pytest.raises(vr.UnknownVersion, match="v7"):
-        vr.resolve_labels("v1.0,v7")
+        vr.resolve_labels("v1.0.0,v7")
 
 
 # ---------------------------------------------------------------------------
@@ -123,33 +123,33 @@ def test_resolve_labels_rejects_unknown_label():
 # ---------------------------------------------------------------------------
 def test_verify_prompts_detects_in_place_edit(monkeypatch):
     monkeypatch.setitem(PROMPTS, "biosignalfoundry", PROMPTS["biosignalfoundry"] + "!")
-    with pytest.raises(vr.VersionDrift, match="v1.0 changed|Prompts for v1.0"):
-        vr.verify_prompts("v1.0")
+    with pytest.raises(vr.VersionDrift, match="v1.0.0 changed|Prompts for v1.0.0"):
+        vr.verify_prompts("v1.0.0")
 
 
 def test_verify_prompts_ignores_whitespace_churn(monkeypatch):
     monkeypatch.setitem(
         PROMPTS, "biosignalfoundry", PROMPTS["biosignalfoundry"] + "   \n\n"
     )
-    vr.verify_prompts("v1.0")
+    vr.verify_prompts("v1.0.0")
 
 
 def test_verify_prompts_ignores_prompts_the_version_does_not_use(monkeypatch):
     monkeypatch.setitem(PROMPTS, "some_future_prompt", "anything")
-    vr.verify_prompts("v1.0")
+    vr.verify_prompts("v1.0.0")
 
 
 # ---------------------------------------------------------------------------
 # register_version
 # ---------------------------------------------------------------------------
 async def test_register_inserts_new_version(fake_session):
-    row = await vr.register_version(fake_session, "v1.0")
+    row = await vr.register_version(fake_session, "v1.0.0")
 
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
     fake_session.add.assert_called_once_with(row)
     fake_session.flush.assert_awaited_once()
     assert isinstance(row, SystemVersion)
-    assert row.label == "v1.0"
+    assert row.label == "v1.0.0"
     assert row.description == config.description
     assert row.config == config.snapshot()
     assert row.prompt_hash == config.prompt_hash
@@ -157,9 +157,9 @@ async def test_register_inserts_new_version(fake_session):
 
 
 async def test_register_existing_identical_version_is_a_no_op(fake_session):
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
     existing = SystemVersion(
-        label="v1.0",
+        label="v1.0.0",
         description="an older wording",
         config=config.snapshot(),
         git_sha="abc1234",
@@ -167,7 +167,7 @@ async def test_register_existing_identical_version_is_a_no_op(fake_session):
     )
     fake_session.get.return_value = existing
 
-    row = await vr.register_version(fake_session, "v1.0")
+    row = await vr.register_version(fake_session, "v1.0.0")
 
     assert row is existing
     fake_session.add.assert_not_called()
@@ -176,38 +176,38 @@ async def test_register_existing_identical_version_is_a_no_op(fake_session):
 
 
 async def test_register_rejects_changed_config(fake_session):
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
     fake_session.get.return_value = SystemVersion(
-        label="v1.0",
+        label="v1.0.0",
         description="x",
         config={**config.snapshot(), "subagents": {}},
         prompt_hash=config.prompt_hash,
     )
     with pytest.raises(vr.VersionDrift, match="different configuration"):
-        await vr.register_version(fake_session, "v1.0")
+        await vr.register_version(fake_session, "v1.0.0")
 
 
 async def test_register_rejects_changed_llm(fake_session):
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
     stored = config.snapshot()
     stored["llm"] = {**stored["llm"], "temperature": 0.9}
     fake_session.get.return_value = SystemVersion(
-        label="v1.0", description="x", config=stored, prompt_hash=config.prompt_hash
+        label="v1.0.0", description="x", config=stored, prompt_hash=config.prompt_hash
     )
     with pytest.raises(vr.VersionDrift):
-        await vr.register_version(fake_session, "v1.0")
+        await vr.register_version(fake_session, "v1.0.0")
 
 
 async def test_register_rejects_changed_stored_prompt_hash(fake_session):
-    config = vr.get_version("v1.0")
+    config = vr.get_version("v1.0.0")
     fake_session.get.return_value = SystemVersion(
-        label="v1.0",
+        label="v1.0.0",
         description="x",
         config=config.snapshot(),
         prompt_hash="00000000",
     )
     with pytest.raises(vr.VersionDrift):
-        await vr.register_version(fake_session, "v1.0")
+        await vr.register_version(fake_session, "v1.0.0")
 
 
 async def test_register_checks_prompts_before_touching_the_database(
@@ -215,7 +215,7 @@ async def test_register_checks_prompts_before_touching_the_database(
 ):
     monkeypatch.setitem(PROMPTS, "biosignalfoundry", "edited")
     with pytest.raises(vr.VersionDrift):
-        await vr.register_version(fake_session, "v1.0")
+        await vr.register_version(fake_session, "v1.0.0")
     fake_session.get.assert_not_awaited()
     fake_session.add.assert_not_called()
 

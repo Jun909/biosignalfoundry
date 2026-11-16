@@ -29,12 +29,12 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
 
 ## Phase 2 — Signal Completeness
 * Wire remaining subagents: clinical (OpenFDA), macro (FRED), sentiment (Finnhub)
-* ~~Explicit version registry: named versions (`v1.0`, `v1.1`, ...) defined as
+* ~~Explicit version registry: named versions (`v1.0.0`, `v1.0.1`, ...) defined as
   configurations (subagents, tools, prompts, model), replacing the git SHA + prompt hash
   label as the identifier~~ ✅ Done — see `src/core/version_registry.py` (a version is a
   supervisor prompt, a subagent → prompt map and an LLM, with a pinned prompt hash that
   makes an in-place prompt edit an error) and `build_agent(label)` in
-  `src/biosignalfoundry.py`. Only `v1.0` (financial health baseline) exists so far; the
+  `src/biosignalfoundry.py`. Only `v1.0.0` (financial health baseline) exists so far; the
   `/analyze` cache key includes the served version. Tools are not part of a version's
   config: a changed tool becomes a new version by giving its subagent a new name (see
   AGENTS.md). See [Evaluation](../README.md#evaluation)
@@ -81,13 +81,13 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
   paper trades are labelled `<git sha>-<prompt hash>` (plus `-dirty` for uncommitted
   changes). Superseded as the identifier by the explicit version registry above; it
   stays as metadata (`git_sha`, `prompt_hash`)
-* Test run evaluation for v1.0
+* Test run evaluation for v1.0.0
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
 * Data quality validation layer
 * ~~Define versioning~~ ✅ Done (policy) — MAJOR/MINOR/PATCH bump rules are in the
   "Versions" section of `AGENTS.md`. Still open: a tool manifest in the version config
-  (tools are not captured today), `parent`/`status` fields, and renaming `v1.0` to
-  `v1.0.0` (needs a migration)
+  (tools are not captured today) and `parent`/`status` fields. The baseline label is
+  now `v1.0.0`
 
 ## Phase 3 — Scalability
 * Async task queue for agent execution (Celery + Redis)

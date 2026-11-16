@@ -50,7 +50,7 @@ biosignalfoundry/
 │   │   ├── streaming_callback.py # Callback pushing tool-progress events to the SSE stream
 │   │   ├── ticker_gate.py        # Deterministic company-name/ticker resolution + biotech gate
 │   │   ├── subagent_capture.py   # Captures each subagent's typed structured response during a run
-│   │   ├── version_registry.py   # Named system versions (v1.0, ...) as code-defined configs + DB registration
+│   │   ├── version_registry.py   # Named system versions (v1.0.0, ...) as code-defined configs + DB registration
 │   │   └── versioning.py         # system_version label (git sha + prompt hash) for paper trades
 │   │
 │   ├── middleware/               # LangChain agent middleware
@@ -165,7 +165,7 @@ Shared infrastructure used by `app.py`, the agents and the scripts. Nothing here
 - **version_registry.py**: the named versions used by paper trading (`VERSIONS`, `DEFAULT_VERSION`). A version is a `VersionConfig`: a supervisor prompt, enabled subagents (name → prompt name; prompt names are keys of `versioning.PROMPTS`), LLM provider/model/temperature, and a pinned `prompt_hash`. Imports no agent or LLM code.
   - `verify_prompts(label)` raises `VersionDrift` if a prompt the version uses was edited in place; copy it under a new `PROMPTS` name and register a new version instead.
   - `register_version(session, label)` inserts the `system_versions` row on first use and raises `VersionDrift` if the stored config later differs. The caller commits.
-  - `get_version` / `resolve_labels` look up a label or parse a CLI value (`all`, `v1.0,v1.1`).
+  - `get_version` / `resolve_labels` look up a label or parse a CLI value (`all`, `v1.0.0,v1.0.1`).
 
 ### **src/middleware/**
 LangChain `AgentMiddleware` implementations applied at agent construction time:
@@ -187,7 +187,7 @@ Signal evaluation framework for validating paper trading signals against price d
 ### **scripts/**
 CLI entry points for the paper trading loop described in the README's "On Backtesting" section:
 - **metrics.py / report_metrics.py**: `metrics.py` holds every metric definition as pure functions over `ReturnRow`s (a row of the `paper_trade_returns` view): excess return vs XBI/IBB, BUY vs SELL/AVOID spread, hit rate, baselines (always-BUY, always-HOLD, random, benchmark), confusion matrix, confidence calibration and loss profile, each with N and a rough 95% interval. HOLD is excluded from the headline metrics. Unit tested without a database. `repository.load_return_rows` / `count_trades` read the view; `scripts/report_metrics.py [--batch] [--versions] [--horizons] [--benchmark xbi|ibb] [--detail]` groups rows by version and horizon and prints them with evaluated-vs-recorded counts. It writes nothing.
-- **record_signal.py**: Thin CLI over `evaluation/recorder.py`: `--batch <name> --versions all|v1.0,v1.1 [--tickers ...] [--force] [--concurrency N]`. Every version runs over the watchlist on one signal date with shared entry prices for the stock, XBI and IBB (one common trading day), so versions compare stock by stock. Re-running a batch skips signals already recorded (resume after failures); `--force` replaces them and deletes their evaluations. A batch whose existing signals have a different date is refused. Exit code 1 if any signal failed, 2 for bad arguments. Run after the US market close.
+- **record_signal.py**: Thin CLI over `evaluation/recorder.py`: `--batch <name> --versions all|v1.0.0,v1.0.1 [--tickers ...] [--force] [--concurrency N]`. Every version runs over the watchlist on one signal date with shared entry prices for the stock, XBI and IBB (one common trading day), so versions compare stock by stock. Re-running a batch skips signals already recorded (resume after failures); `--force` replaces them and deletes their evaluations. A batch whose existing signals have a different date is refused. Exit code 1 if any signal failed, 2 for bad arguments. Run after the US market close.
 - **evaluator.py / evaluate_signals.py**: `evaluator.evaluate_matured(...)` finds every (signal, horizon in 7/30/90) whose target date (`entry_price_date` + horizon) is before today and has no `paper_trade_evaluations` row, downloads stock/XBI/IBB once per symbol, and inserts a row with the exit prices on the first common trading day on or after the target (`price_date`) plus entry prices re-fetched in the same download (`*_entry_price_adj`, split/dividend safe). Today's unfinished session is never used; horizons without a close yet stay pending, missing data is reported as failed. Inserts use `ON CONFLICT DO NOTHING`, so it is safe to run late or repeatedly. The script takes `[--batch] [--versions] [--horizons]` and exits 1 if anything failed.
 
 ### **alembic/**
