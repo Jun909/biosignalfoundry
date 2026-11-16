@@ -85,8 +85,10 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
 * Data quality validation layer
 * ~~Define versioning~~ ✅ Done (policy) — MAJOR/MINOR/PATCH bump rules are in the
-  "Versions" section of `AGENTS.md`. Still open: a tool manifest in the version config
-  (tools are not captured today) and `parent`/`status` fields. The baseline label is
+  "Versions" section of `AGENTS.md`. Tool manifest ✅ done — each version
+  declares its subagents' tool names and pins a hash of their interfaces (name, description,
+  argument schema), checked by `build_agent`. Still open: `parent`/`status` fields, and a
+  per-trade record of the tool calls actually made. The baseline label is
   now `v1.0.0`
 
 ## Phase 3 — Scalability

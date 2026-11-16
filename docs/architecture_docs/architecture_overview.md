@@ -50,6 +50,7 @@ biosignalfoundry/
 │   │   ├── streaming_callback.py # Callback pushing tool-progress events to the SSE stream
 │   │   ├── ticker_gate.py        # Deterministic company-name/ticker resolution + biotech gate
 │   │   ├── subagent_capture.py   # Captures each subagent's typed structured response during a run
+│   │   ├── tool_manifest.py      # Hash of the tool interfaces (name, description, args) a version pins
 │   │   ├── version_registry.py   # Named system versions (v1.0.0, ...) as code-defined configs + DB registration
 │   │   └── versioning.py         # system_version label (git sha + prompt hash) for paper trades
 │   │
@@ -116,7 +117,7 @@ FastAPI application entry point (CORS origins come from `ALLOWED_ORIGINS`):
 - `GET /ready`: readiness; pings Redis and returns 503 if it is unreachable.
 
 ### **`src/biosignalfoundry.py`**
-Defines `BioSignalFoundryOutput` and `build_agent(label, model=None)`, which builds the top-level deep agent (`deepagents.create_deep_agent`) for a registered version from `core/version_registry.py`: it verifies the version's prompts against their pinned hash (`VersionDrift` on an in-place edit), builds the version's LLM with `make_llm` (unless `model` overrides it), builds each enabled subagent through `SUBAGENT_BUILDERS`, and enforces the structured output schema via `AutoStrategy`. The module-level `biosignalfoundry` served by the API is `build_agent(DEFAULT_VERSION, model=llm)`, i.e. the default version on the LLM chosen by `LLM_PROVIDER`; paper trading builds versions without the override so each uses the LLM it pins. `SUBAGENT_BUILDERS` is the single list of subagents; `build_agent` raises `VersionError` if a version names a subagent with no builder, and a unit test checks every registered version.
+Defines `BioSignalFoundryOutput` and `build_agent(label, model=None)`, which builds the top-level deep agent (`deepagents.create_deep_agent`) for a registered version from `core/version_registry.py`: it verifies the version's prompts and tool interfaces against their pinned hashes (`VersionDrift` on an in-place edit), builds the version's LLM with `make_llm` (unless `model` overrides it), builds each enabled subagent through `SUBAGENT_BUILDERS`, and enforces the structured output schema via `AutoStrategy`. The module-level `biosignalfoundry` served by the API is `build_agent(DEFAULT_VERSION, model=llm)`, i.e. the default version on the LLM chosen by `LLM_PROVIDER`; paper trading builds versions without the override so each uses the LLM it pins. `SUBAGENT_BUILDERS` and `SUBAGENT_TOOLS` (subagent → the tool objects its builder uses, defined once in the agent module) are the only lists of subagents; `build_agent` raises `VersionError` if a version names a subagent with no builder, and a unit test checks every registered version.
 
 ### **src/agents/**
 Contains agent implementations that orchestrate decision-making pipelines. Each agent uses tools from `agent_tools/` to gather and analyze data. Agents are wrapped as `CompiledSubAgent` instances so they can be composed into the top-level deep agent.
@@ -162,8 +163,9 @@ Shared infrastructure used by `app.py`, the agents and the scripts. Nothing here
   - prompt hash: 8-char SHA-256 over the normalized text of every prompt in `PROMPTS`. **Register new agent prompts in `PROMPTS`** or prompt edits won't change the version.
   - `-dirty`: uncommitted tracked changes exist (untracked files are ignored).
 - **subagent_capture.py**: deepagents drops a subagent's `structured_response` and gives the supervisor only a text repr. `build_agent` wraps each subagent's runnable with `capture_structured_output`, which records the typed output into a collector opened by `capture_subagent_outputs()` (used by the recorder) and returns the result unchanged, so the supervisor's behaviour is identical. Stored in `paper_trades.agent_output.subagents`; without a collector it does nothing.
-- **version_registry.py**: the named versions used by paper trading (`VERSIONS`, `DEFAULT_VERSION`). A version is a `VersionConfig`: a supervisor prompt, enabled subagents (name → prompt name; prompt names are keys of `versioning.PROMPTS`), LLM provider/model/temperature, and a pinned `prompt_hash`. Imports no agent or LLM code.
+- **version_registry.py**: the named versions used by paper trading (`VERSIONS`, `DEFAULT_VERSION`). A version is a `VersionConfig`: a supervisor prompt, enabled subagents (name → prompt name; prompt names are keys of `versioning.PROMPTS`), declared `tools` (subagent name → tool names), LLM provider/model/temperature, and pinned `prompt_hash` and `tool_hash`. Imports no agent or LLM code.
   - `verify_prompts(label)` raises `VersionDrift` if a prompt the version uses was edited in place; copy it under a new `PROMPTS` name and register a new version instead.
+  - `verify_tools(label, tools_by_subagent)` raises `VersionDrift` if the tools a subagent really exposes differ from the declared names, or if the hash of their interfaces (`core/tool_manifest.py`: name, whitespace-normalized description, argument schema) differs from `tool_hash`. The implementation is not hashed, so fixes meant for every version stay allowed; `git_sha` points at the code. `build_agent` calls it with `SUBAGENT_TOOLS`.
   - `register_version(session, label)` inserts the `system_versions` row on first use and raises `VersionDrift` if the stored config later differs. The caller commits.
   - `get_version` / `resolve_labels` look up a label or parse a CLI value (`all`, `v1.0.0,v1.0.1`).
 

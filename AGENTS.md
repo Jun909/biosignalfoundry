@@ -70,7 +70,7 @@ reproducible once it has trades.
   - No new version for changes that don't alter decisions (description wording, or a bug
     fix meant to apply to every version).
   Put the parent and what changed in the new entry's `description`, e.g.
-  `"v1.1.0: v1.0.0 + macro subagent"`. Labels are always three-part; the baseline is
+  `"v2.0.0: v1.0.0 + macro subagent"`. Labels are always three-part; the baseline is
   `v1.0.0`.
 - **Never edit in place** a prompt a registered version uses, or its `VERSIONS` entry. Prompts
   are pinned by hash: an edit raises `VersionDrift`, `build_agent` refuses to build (so the API
@@ -81,22 +81,26 @@ reproducible once it has trades.
      `build_<name>_subagent(llm, system_prompt)`.
   2. Prompt file in `src/prompts/`, plus a copy of the supervisor prompt under a new name
      (it must mention the new subagent). Register both in `PROMPTS` in `src/core/versioning.py`.
-  3. Register the builder in `SUBAGENT_BUILDERS` in `src/biosignalfoundry.py` (the only list
-     of subagents).
-  4. Add a `VERSIONS` entry: `supervisor_prompt`, `subagents` (name → prompt name), `llm`,
-     `prompt_hash`. Put a placeholder hash, run `uv run pytest tests/unit/test_version_registry.py`,
-     and copy the real value from the `VersionDrift` message.
+  3. Register the builder in `SUBAGENT_BUILDERS` and its tool list in `SUBAGENT_TOOLS` in
+     `src/biosignalfoundry.py` (the only lists of subagents). Define the tool list once in the
+     agent module (e.g. `MACRO_CONTEXT_TOOLS`) and use it in both the builder and `SUBAGENT_TOOLS`.
+  4. Add a `VERSIONS` entry: `supervisor_prompt`, `subagents` (name → prompt name), `tools`
+     (subagent name → tool names), `llm`, `prompt_hash`, `tool_hash`. Put placeholder hashes,
+     run `uv run pytest tests/unit/test_version_registry.py`, and copy the real values from the
+     `VersionDrift` messages.
   5. Optionally add the tool/agent labels to `TOOL_LABELS` in `src/core/streaming_callback.py`.
   6. Update `docs/architecture_docs/architecture_overview.md`.
-- **New or changed tool on an existing subagent:** a version selects subagents by name, not
-  tools, so editing a subagent's tools changes every version that uses it from then on. To
-  compare before and after, give the changed subagent a new name (e.g. `financial_health_v2`)
-  with its own builder and prompt, and point the new version at it. Edit in place only for
-  fixes that should apply to all versions.
+- **New or changed tool on an existing subagent:** a version pins the tools' *interface*
+  (name, description, argument schema) as `tool_hash`, and the declared tool names in `tools`.
+  Editing either in place raises `VersionDrift` and `build_agent` refuses to build. To compare
+  before and after, give the changed subagent a new name (e.g. `financial_health_v2`) with its
+  own builder, tool list and prompt, and point the new version at it. A tool's *implementation*
+  is not pinned: edit it in place only for fixes that should apply to all versions.
 - **Prompt, LLM or temperature change only:** a new `VERSIONS` entry (and a new prompt name if
   a prompt changed); no other code.
-- The version registry records configuration and prompts, not tool code; `git_sha` on the
-  `system_versions` row is the commit that first registered it.
+- The version registry records configuration, prompts and tool interfaces, not tool
+  implementation code; `git_sha` on the `system_versions` row is the commit that first
+  registered it.
 - `DEFAULT_VERSION` is what the API serves. The `/analyze` cache key includes the version
   label, so changing it starts a fresh cache.
 

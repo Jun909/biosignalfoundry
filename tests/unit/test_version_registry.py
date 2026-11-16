@@ -1,4 +1,6 @@
+import copy
 import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -14,7 +16,9 @@ def make_config(**overrides) -> vr.VersionConfig:
         supervisor_prompt="biosignalfoundry",
         subagents={"financial_health": "financial_health_agent"},
         llm=vr.LLMConfig(provider="deepseek", model="deepseek-chat", temperature=0.1),
+        tools=vr.get_version("v1.0.0").tools,
         prompt_hash=vr.current_prompt_hash("v1.0.0"),
+        tool_hash=vr.get_version("v1.0.0").tool_hash,
     )
     values.update(overrides)
     return vr.VersionConfig(**values)
@@ -54,6 +58,13 @@ def test_validate_registry_rejects_unknown_prompt(monkeypatch):
         vr._validate_registry()
 
 
+def test_validate_registry_rejects_tools_for_other_subagents(monkeypatch):
+    bad = make_config(tools={"macro_context": ("get_cpi",)})
+    monkeypatch.setitem(vr.VERSIONS, "v9.0", bad)
+    with pytest.raises(vr.VersionError, match="tools"):
+        vr._validate_registry()
+
+
 def test_validate_registry_rejects_unregistered_default(monkeypatch):
     monkeypatch.setattr(vr, "DEFAULT_VERSION", "v9.9")
     with pytest.raises(vr.VersionError, match="DEFAULT_VERSION"):
@@ -82,6 +93,19 @@ def test_snapshot_is_json_serialisable_and_excludes_description():
 def test_config_is_frozen():
     with pytest.raises(Exception):
         make_config().description = "changed"
+
+
+def test_snapshot_records_declared_tools_and_their_hash():
+    snapshot = make_config().snapshot()
+    assert snapshot["tools"] == {
+        "financial_health": ["get_company_profile", "get_income_statement_annual"]
+    }
+    assert snapshot["tool_hash"] == vr.get_version("v1.0.0").tool_hash
+
+
+def test_tool_hash_must_be_eight_characters():
+    with pytest.raises(ValueError):
+        make_config(tool_hash="abc")
 
 
 def test_prompt_hash_must_be_eight_characters():
@@ -224,3 +248,80 @@ async def test_register_unknown_version(fake_session):
     with pytest.raises(vr.UnknownVersion):
         await vr.register_version(fake_session, "v9.9")
     fake_session.get.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Tool drift
+# ---------------------------------------------------------------------------
+def fake_tool(name, description="Does a thing.", args=None):
+    return SimpleNamespace(
+        name=name, description=description, args=args or {"ticker": {"type": "string"}}
+    )
+
+
+def real_tools():
+    """The tools the baseline version actually exposes."""
+    from src.biosignalfoundry import SUBAGENT_TOOLS
+
+    return {name: list(tools) for name, tools in SUBAGENT_TOOLS.items()}
+
+
+def test_every_registered_version_matches_its_real_tools():
+    """Fails in CI if a tool a registered version uses was edited in place."""
+    for label in vr.VERSIONS:
+        vr.verify_tools(label, real_tools())
+
+
+def test_verify_tools_detects_a_description_edit():
+    tools = real_tools()
+    edited = copy.copy(tools["financial_health"][0])
+    edited.description = edited.description + " Now with more detail."
+    tools["financial_health"][0] = edited
+    with pytest.raises(vr.VersionDrift, match="Tool interfaces for v1.0.0"):
+        vr.verify_tools("v1.0.0", tools)
+
+
+def test_verify_tools_detects_an_argument_schema_change():
+    tools = real_tools()
+    original = tools["financial_health"][0]
+    tools["financial_health"][0] = fake_tool(
+        original.name,
+        original.description,
+        {**original.args, "years": {"type": "integer"}},
+    )
+    with pytest.raises(vr.VersionDrift, match="Tool interfaces"):
+        vr.verify_tools("v1.0.0", tools)
+
+
+def test_verify_tools_ignores_whitespace_and_order():
+    tools = real_tools()
+    reordered = list(reversed(tools["financial_health"]))
+    respaced = copy.copy(reordered[0])
+    respaced.description = "  " + respaced.description.replace(" ", "  ") + "\n"
+    reordered[0] = respaced
+    vr.verify_tools("v1.0.0", {"financial_health": reordered})
+
+
+def test_verify_tools_detects_an_added_tool():
+    tools = real_tools()
+    tools["financial_health"].append(fake_tool("get_everything"))
+    with pytest.raises(vr.VersionDrift, match="get_everything"):
+        vr.verify_tools("v1.0.0", tools)
+
+
+def test_verify_tools_detects_a_removed_tool():
+    tools = real_tools()
+    tools["financial_health"].pop()
+    with pytest.raises(vr.VersionDrift, match="declares"):
+        vr.verify_tools("v1.0.0", tools)
+
+
+def test_verify_tools_requires_tools_for_every_enabled_subagent():
+    with pytest.raises(vr.VersionError, match="financial_health"):
+        vr.verify_tools("v1.0.0", {})
+
+
+def test_verify_tools_only_looks_at_the_versions_own_subagents():
+    tools = real_tools()
+    tools["macro_context"] = [fake_tool("get_cpi")]
+    vr.verify_tools("v1.0.0", tools)

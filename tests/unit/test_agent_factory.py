@@ -12,6 +12,7 @@ import pytest
 
 import src.biosignalfoundry as bsf
 from src.core import version_registry as vr
+from src.core.tool_manifest import tool_hash
 from src.core.versioning import PROMPTS, prompt_hash
 
 
@@ -41,6 +42,10 @@ def builders(monkeypatch):
 def test_every_registered_version_only_uses_subagents_with_builders(label):
     """Fails in CI if a version names a subagent nobody registered a builder for."""
     assert vr.get_version(label).subagents.keys() <= bsf.SUBAGENT_BUILDERS.keys()
+
+
+def test_every_subagent_builder_has_registered_tools():
+    assert bsf.SUBAGENT_BUILDERS.keys() == bsf.SUBAGENT_TOOLS.keys()
 
 
 def test_module_level_agent_is_the_default_version_on_the_env_llm():
@@ -100,7 +105,9 @@ def test_build_agent_enables_only_the_versions_subagents(
         supervisor_prompt="biosignalfoundry",
         subagents={},
         llm=vr.get_version("v1.0.0").llm,
+        tools={},
         prompt_hash=prompt_hash({"biosignalfoundry": PROMPTS["biosignalfoundry"]}),
+        tool_hash=tool_hash({}),
     )
     monkeypatch.setitem(vr.VERSIONS, "v0.1", none_enabled)
 
@@ -143,5 +150,18 @@ def test_build_agent_refuses_to_build_after_a_prompt_edit(
         bsf.build_agent("v1.0.0")
 
     # nothing expensive happens before the drift check
+    make_llm.assert_not_called()
+    create_deep_agent.assert_not_called()
+
+
+def test_build_agent_refuses_to_build_after_a_tool_edit(
+    create_deep_agent, make_llm, builders, monkeypatch
+):
+    tool = bsf.SUBAGENT_TOOLS["financial_health"][0]
+    monkeypatch.setattr(tool, "description", tool.description + " edited")
+
+    with pytest.raises(vr.VersionDrift, match="Tool interfaces"):
+        bsf.build_agent("v1.0.0")
+
     make_llm.assert_not_called()
     create_deep_agent.assert_not_called()
