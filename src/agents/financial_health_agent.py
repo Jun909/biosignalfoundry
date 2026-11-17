@@ -23,10 +23,15 @@ class FinancialHealthAgentOutput(BaseModel):
     score: int = Field(..., description="Score from 1 - 10")
 
 
+# Single source of truth for this subagent's tools: the builder uses it and the version
+# registry fingerprints it (see SUBAGENT_TOOLS in src/biosignalfoundry.py).
+FINANCIAL_HEALTH_TOOLS = [get_income_statement_annual, get_company_profile]
+
+
 def build_financial_health_subagent(llm, system_prompt: str) -> CompiledSubAgent:
     agent = create_agent(
         model=llm,
-        tools=[get_income_statement_annual, get_company_profile],
+        tools=FINANCIAL_HEALTH_TOOLS,
         system_prompt=system_prompt,
         response_format=FinancialHealthAgentOutput,
         middleware=[LoggingMiddleware(agent_name="financial_health")],

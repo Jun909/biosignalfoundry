@@ -5,10 +5,12 @@ from langchain.agents.structured_output import AutoStrategy
 from pydantic import BaseModel, Field
 
 from llm_provider import llm, make_llm
-from src.agents.financial_health_agent import build_financial_health_subagent
+from src.agents.financial_health_agent import (FINANCIAL_HEALTH_TOOLS,
+                                               build_financial_health_subagent)
 from src.core.subagent_capture import capture_structured_output
 from src.core.version_registry import (DEFAULT_VERSION, VersionError,
-                                       get_version, verify_prompts)
+                                       get_version, verify_prompts,
+                                       verify_tools)
 from src.core.versioning import PROMPTS
 from src.middleware.logging_middleware import LoggingMiddleware
 
@@ -28,6 +30,12 @@ SUBAGENT_BUILDERS: dict[str, Callable[..., CompiledSubAgent]] = {
     "financial_health": build_financial_health_subagent,
 }
 
+# Subagent name -> the tools it exposes to the LLM (the same objects its builder uses).
+# Register a new subagent's tools here too; ``verify_tools`` pins them per version.
+SUBAGENT_TOOLS: dict[str, list] = {
+    "financial_health": FINANCIAL_HEALTH_TOOLS,
+}
+
 
 def build_agent(label: str, model=None):
     """Build the supervisor agent for a registered version.
@@ -45,6 +53,7 @@ def build_agent(label: str, model=None):
             "Register them in SUBAGENT_BUILDERS."
         )
     verify_prompts(label)
+    verify_tools(label, SUBAGENT_TOOLS)
 
     if model is None:
         model = make_llm(config.llm.provider, config.llm.model, config.llm.temperature)

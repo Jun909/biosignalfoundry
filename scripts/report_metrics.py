@@ -9,7 +9,7 @@ read as final. See src/evaluation/metrics.py for every definition.
 Usage:
     uv run python scripts/report_metrics.py
     uv run python scripts/report_metrics.py --batch 2026-11-a --horizons 30
-    uv run python scripts/report_metrics.py --versions v1.0,v1.1 --benchmark ibb --detail
+    uv run python scripts/report_metrics.py --versions v1.0.0,v1.0.1 --benchmark ibb --detail
 """
 
 import argparse

@@ -43,7 +43,7 @@ def price_fn(ticker, start, end):
     return {d: p for d, p in PRICES.get(ticker, {}).items() if start <= d <= end}
 
 
-async def add_trade(session_factory, ticker="MRNA", label="v1.0", batch="b1"):
+async def add_trade(session_factory, ticker="MRNA", label="v1.0.0", batch="b1"):
     async with session_factory() as session:
         await vr.register_version(session, label)
         await upsert_signal(
@@ -127,7 +127,7 @@ async def test_todays_unfinished_session_is_never_used(session_factory):
     await add_trade(session_factory)
     # target (Fri 11-13) == today: the close is not final, so stay pending
     report = await run(session_factory, ENTRY + timedelta(days=7))
-    assert not report.created and (("v1.0", "MRNA", 7) in report.pending)
+    assert not report.created and (("v1.0.0", "MRNA", 7) in report.pending)
 
 
 async def test_missing_prices_fail_without_blocking_others(session_factory):
@@ -135,7 +135,7 @@ async def test_missing_prices_fail_without_blocking_others(session_factory):
     await add_trade(session_factory, "ZZZZ")
     report = await run(session_factory, ENTRY + timedelta(days=8))
     assert [(t, h) for _, t, h in report.created] == [("MRNA", 7)]
-    assert report.failed[0][:3] == ("v1.0", "ZZZZ", 7)
+    assert report.failed[0][:3] == ("v1.0.0", "ZZZZ", 7)
 
 
 async def test_filters_by_batch_and_horizon(session_factory):
@@ -182,4 +182,4 @@ async def test_load_return_rows_reads_the_view_and_filters(session_factory):
         assert r.forward_return == pytest.approx(55 / 50 - 1)
         assert r.xbi_return == pytest.approx(102.5 / 100 - 1)
         assert len(await load_return_rows(session)) == 4  # 2 trades x horizons 7 and 30
-        assert await count_trades(session, batch="b1") == {"v1.0": 1}
+        assert await count_trades(session, batch="b1") == {"v1.0.0": 1}

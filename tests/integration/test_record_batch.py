@@ -36,8 +36,8 @@ def session_factory(engine):
 
 @pytest.fixture
 def two_versions(monkeypatch):
-    """v1.0 plus an identical-config v1.1 so a batch has more than one version."""
-    monkeypatch.setitem(vr.VERSIONS, "v1.1", vr.get_version("v1.0"))
+    """v1.0.0 plus an identical-config v1.0.1 so a batch has more than one version."""
+    monkeypatch.setitem(vr.VERSIONS, "v1.0.1", vr.get_version("v1.0.0"))
 
 
 def price_fn(ticker: str, start: date, end: date) -> dict:
@@ -95,7 +95,7 @@ def make_agent(decision: str = "Buy", fail_for: frozenset[str] = frozenset()):
 def run(session_factory, agents, **overrides):
     kwargs = dict(
         batch="test-1",
-        labels=["v1.0"],
+        labels=["v1.0.0"],
         tickers=["MRNA", "GILD"],
         signal_date=SIGNAL_DATE,
         session_factory=session_factory,
@@ -127,17 +127,17 @@ async def count(session_factory, model) -> int:
 async def test_records_every_version_and_ticker_with_shared_entry_prices(
     session_factory, two_versions
 ):
-    agents = {"v1.0": make_agent(), "v1.1": make_agent()}
+    agents = {"v1.0.0": make_agent(), "v1.0.1": make_agent()}
 
-    report = await run(session_factory, agents, labels=["v1.0", "v1.1"])
+    report = await run(session_factory, agents, labels=["v1.0.0", "v1.0.1"])
 
     assert len(report.recorded) == 4 and not report.failed and not report.skipped
     trades = await all_trades(session_factory)
     assert [(t.version_label, t.ticker) for t in trades] == [
-        ("v1.0", "GILD"),
-        ("v1.0", "MRNA"),
-        ("v1.1", "GILD"),
-        ("v1.1", "MRNA"),
+        ("v1.0.0", "GILD"),
+        ("v1.0.0", "MRNA"),
+        ("v1.0.1", "GILD"),
+        ("v1.0.1", "MRNA"),
     ]
     # Versions of the same ticker share exactly the same entry prices.
     by_ticker = {}
@@ -154,7 +154,7 @@ async def test_records_every_version_and_ticker_with_shared_entry_prices(
 
 
 async def test_stores_decision_confidence_and_agent_output(session_factory):
-    await run(session_factory, {"v1.0": make_agent("Avoid")}, tickers=["MRNA"])
+    await run(session_factory, {"v1.0.0": make_agent("Avoid")}, tickers=["MRNA"])
 
     (trade,) = await all_trades(session_factory)
     assert trade.decision is DecisionLabel.AVOID
@@ -172,20 +172,20 @@ async def test_stores_decision_confidence_and_agent_output(session_factory):
 
 
 async def test_registers_the_versions_it_records(session_factory, two_versions):
-    agents = {"v1.0": make_agent(), "v1.1": make_agent()}
-    await run(session_factory, agents, labels=["v1.0", "v1.1"], tickers=["MRNA"])
+    agents = {"v1.0.0": make_agent(), "v1.0.1": make_agent()}
+    await run(session_factory, agents, labels=["v1.0.0", "v1.0.1"], tickers=["MRNA"])
 
     async with session_factory() as session:
         labels = set((await session.scalars(select(SystemVersion.label))).all())
-    assert labels == {"v1.0", "v1.1"}
+    assert labels == {"v1.0.0", "v1.0.1"}
 
 
 async def test_rerun_skips_signals_already_recorded(session_factory):
     agent = make_agent()
-    await run(session_factory, {"v1.0": agent})
+    await run(session_factory, {"v1.0.0": agent})
     assert agent.ainvoke.await_count == 2
 
-    report = await run(session_factory, {"v1.0": agent})
+    report = await run(session_factory, {"v1.0.0": agent})
 
     assert agent.ainvoke.await_count == 2  # no new paid calls
     assert len(report.skipped) == 2 and not report.recorded
@@ -196,26 +196,26 @@ async def test_one_failing_signal_does_not_stop_the_batch_and_can_be_retried(
     session_factory,
 ):
     flaky = make_agent(fail_for=frozenset({"MRNA"}))
-    report = await run(session_factory, {"v1.0": flaky})
+    report = await run(session_factory, {"v1.0.0": flaky})
 
-    assert report.recorded == [("v1.0", "GILD")]
-    assert [(f[0], f[1]) for f in report.failed] == [("v1.0", "MRNA")]
+    assert report.recorded == [("v1.0.0", "GILD")]
+    assert [(f[0], f[1]) for f in report.failed] == [("v1.0.0", "MRNA")]
     assert "blew up" in report.failed[0][2]
 
     healthy = make_agent()
-    retry = await run(session_factory, {"v1.0": healthy})
+    retry = await run(session_factory, {"v1.0.0": healthy})
 
-    assert retry.recorded == [("v1.0", "MRNA")]
+    assert retry.recorded == [("v1.0.0", "MRNA")]
     assert healthy.ainvoke.await_count == 1  # GILD was skipped, not re-run
     assert await count(session_factory, PaperTrade) == 2
 
 
 async def test_ticker_without_prices_fails_without_calling_the_agent(session_factory):
     agent = make_agent()
-    report = await run(session_factory, {"v1.0": agent}, tickers=["MRNA", "ZZZZ"])
+    report = await run(session_factory, {"v1.0.0": agent}, tickers=["MRNA", "ZZZZ"])
 
-    assert report.recorded == [("v1.0", "MRNA")]
-    assert report.failed[0][:2] == ("v1.0", "ZZZZ")
+    assert report.recorded == [("v1.0.0", "MRNA")]
+    assert report.failed[0][:2] == ("v1.0.0", "ZZZZ")
     assert "No price data" in report.failed[0][2]
     assert agent.ainvoke.await_count == 1
 
@@ -224,7 +224,7 @@ async def test_missing_structured_response_is_a_failure(session_factory):
     agent = MagicMock()
     agent.ainvoke = AsyncMock(return_value={"messages": []})
 
-    report = await run(session_factory, {"v1.0": agent}, tickers=["MRNA"])
+    report = await run(session_factory, {"v1.0.0": agent}, tickers=["MRNA"])
 
     assert not report.recorded
     assert "structured response" in report.failed[0][2]
@@ -233,20 +233,20 @@ async def test_missing_structured_response_is_a_failure(session_factory):
 
 async def test_unknown_decision_label_is_a_failure(session_factory):
     report = await run(
-        session_factory, {"v1.0": make_agent("Moonshot")}, tickers=["MRNA"]
+        session_factory, {"v1.0.0": make_agent("Moonshot")}, tickers=["MRNA"]
     )
     assert "Unknown decision" in report.failed[0][2]
     assert await count(session_factory, PaperTrade) == 0
 
 
 async def test_batch_with_signals_from_another_date_is_refused(session_factory):
-    await run(session_factory, {"v1.0": make_agent()}, tickers=["MRNA"])
+    await run(session_factory, {"v1.0.0": make_agent()}, tickers=["MRNA"])
 
     agent = make_agent()
     with pytest.raises(BatchError, match="new batch name"):
         await run(
             session_factory,
-            {"v1.0": agent},
+            {"v1.0.0": agent},
             tickers=["GILD"],
             signal_date=date(2026, 11, 7),
         )
@@ -254,7 +254,7 @@ async def test_batch_with_signals_from_another_date_is_refused(session_factory):
 
 
 async def test_force_replaces_signals_and_deletes_their_evaluations(session_factory):
-    await run(session_factory, {"v1.0": make_agent("Buy")}, tickers=["MRNA"])
+    await run(session_factory, {"v1.0.0": make_agent("Buy")}, tickers=["MRNA"])
     (trade,) = await all_trades(session_factory)
     async with session_factory() as session:
         session.add(
@@ -274,10 +274,10 @@ async def test_force_replaces_signals_and_deletes_their_evaluations(session_fact
         await session.commit()
 
     report = await run(
-        session_factory, {"v1.0": make_agent("Sell")}, tickers=["MRNA"], force=True
+        session_factory, {"v1.0.0": make_agent("Sell")}, tickers=["MRNA"], force=True
     )
 
-    assert report.recorded == [("v1.0", "MRNA")]
+    assert report.recorded == [("v1.0.0", "MRNA")]
     (replaced,) = await all_trades(session_factory)
     assert replaced.decision is DecisionLabel.SELL
     assert await count(session_factory, PaperTradeEvaluation) == 0
@@ -296,10 +296,10 @@ async def test_unbuildable_version_fails_before_anything_is_recorded(session_fac
 
 async def test_invalid_batch_name_is_rejected(session_factory):
     with pytest.raises(BatchError, match="Invalid batch name"):
-        await run(session_factory, {"v1.0": make_agent()}, batch="bad name")
+        await run(session_factory, {"v1.0.0": make_agent()}, batch="bad name")
 
 
 async def test_concurrent_run_records_the_same_signals(session_factory):
-    report = await run(session_factory, {"v1.0": make_agent()}, concurrency=4)
-    assert sorted(report.recorded) == [("v1.0", "GILD"), ("v1.0", "MRNA")]
+    report = await run(session_factory, {"v1.0.0": make_agent()}, concurrency=4)
+    assert sorted(report.recorded) == [("v1.0.0", "GILD"), ("v1.0.0", "MRNA")]
     assert await count(session_factory, PaperTrade) == 2

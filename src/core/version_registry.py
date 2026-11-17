@@ -1,5 +1,5 @@
 """
-Registry of named system versions (v1.0, v1.1, ...) used by paper trading.
+Registry of named system versions (v1.0.0, v1.0.1, ...) used by paper trading.
 
 A version is a *configuration*: which subagents are enabled, which prompts they
 use, and which LLM runs them. The label is the identifier; the git SHA recorded
@@ -16,8 +16,9 @@ Once a version has paper trades it must not change. Two checks enforce that:
 * ``register_version`` — writes the config to ``system_versions`` on first use and
                          refuses to continue if the stored config later differs.
 
-A version captures configuration and prompts, not tool code: a bug fix in a shared
-tool applies to every version run afterwards. ``git_sha`` on the row records which
+A version captures configuration, prompts and the tool *interfaces* (names, descriptions,
+argument schemas, pinned by ``tool_hash`` and checked by ``verify_tools``), not tool
+code: a bug fix in a shared tool's implementation applies to every version run afterwards. ``git_sha`` on the row records which
 commit first registered it.
 
 This module deliberately imports no agent or LLM code. Turning a config into a
@@ -25,9 +26,13 @@ running agent is the job of the agent factory (``build_agent``), which also chec
 that every subagent a version names has a builder.
 """
 
+from collections.abc import Mapping, Sequence
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.tool_manifest import tool_hash, tool_names
 from src.core.versioning import PROMPTS, git_sha, prompt_hash
 from src.evaluation.models import SystemVersion
 
@@ -61,8 +66,15 @@ class VersionConfig(BaseModel):
     # Enabled subagent name -> the prompt name it uses.
     subagents: dict[str, str]
     llm: LLMConfig
+    # Enabled subagent name -> names of the tools it exposes to the LLM. Declared here
+    # so the stored config says what the version could call; ``verify_tools`` checks
+    # it against the real tools when the agent is built.
+    tools: dict[str, tuple[str, ...]]
     # Hash of every prompt this version uses, pinned so an in-place edit is detected.
     prompt_hash: str = Field(min_length=8, max_length=8)
+    # Hash of the name, description and argument schema of every tool above, pinned
+    # so editing what the LLM sees of a tool is detected like a prompt edit.
+    tool_hash: str = Field(min_length=8, max_length=8)
 
     @property
     def prompt_names(self) -> tuple[str, ...]:
@@ -75,18 +87,22 @@ class VersionConfig(BaseModel):
 
 
 VERSIONS: dict[str, VersionConfig] = {
-    "v1.0": VersionConfig(
+    "v1.0.0": VersionConfig(
         description="Baseline: supervisor + financial health subagent only",
         supervisor_prompt="biosignalfoundry",
         subagents={"financial_health": "financial_health_agent"},
         llm=LLMConfig(provider="deepseek", model="deepseek-chat", temperature=0.1),
+        tools={
+            "financial_health": ("get_company_profile", "get_income_statement_annual")
+        },
         prompt_hash="aa847f50",
+        tool_hash="74f2e54c",
     ),
 }
 
 # Version the API serves. Include the label in the /analyze cache key so changing
 # this cannot return a decision made by the previous default.
-DEFAULT_VERSION = "v1.0"
+DEFAULT_VERSION = "v1.0.0"
 
 
 def _validate_registry() -> None:
@@ -96,6 +112,11 @@ def _validate_registry() -> None:
             raise VersionError(
                 f"{label}: prompts {sorted(missing_prompts)} are not in "
                 "versioning.PROMPTS"
+            )
+        if config.tools.keys() != config.subagents.keys():
+            raise VersionError(
+                f"{label}: `tools` must declare tools for exactly the enabled "
+                f"subagents {sorted(config.subagents)}, got {sorted(config.tools)}"
             )
     if DEFAULT_VERSION not in VERSIONS:
         raise VersionError(f"DEFAULT_VERSION {DEFAULT_VERSION!r} is not registered")
@@ -114,7 +135,7 @@ def get_version(label: str) -> VersionConfig:
 
 
 def resolve_labels(spec: str) -> list[str]:
-    """Parse a CLI value: ``all`` or comma-separated labels (``v1.0,v1.1``)."""
+    """Parse a CLI value: ``all`` or comma-separated labels (``v1.0.0,v1.0.1``)."""
     if spec.strip().lower() == "all":
         return list(VERSIONS)
     labels = [part.strip() for part in spec.split(",") if part.strip()]
@@ -139,6 +160,40 @@ def verify_prompts(label: str) -> None:
             f"Prompts for {label} changed (hash {actual}, pinned {expected}). "
             "Copy the edited prompt under a new name in versioning.PROMPTS and "
             "register a new version instead of changing this one."
+        )
+
+
+def verify_tools(label: str, tools_by_subagent: Mapping[str, Sequence[Any]]) -> None:
+    """Raise if the tools a version's subagents really expose differ from its config.
+
+    ``tools_by_subagent`` maps subagent name to its tool objects (the agent factory
+    owns this; the registry imports no agent code). Checks the declared tool names,
+    then the pinned interface hash (name, description, argument schema).
+    """
+    config = get_version(label)
+    missing = config.subagents.keys() - tools_by_subagent.keys()
+    if missing:
+        raise VersionError(
+            f"{label}: no tools registered for subagents {sorted(missing)}"
+        )
+    actual = {name: tools_by_subagent[name] for name in config.subagents}
+
+    for name, tools in actual.items():
+        declared = tuple(sorted(config.tools.get(name, ())))
+        if declared != tool_names(tools):
+            raise VersionDrift(
+                f"Tools for {label}/{name} are {list(tool_names(tools))} but the "
+                f"version declares {list(declared)}. Give the subagent a new name and "
+                "register a new version instead of changing this one."
+            )
+
+    actual_hash = tool_hash(actual)
+    if actual_hash != config.tool_hash:
+        raise VersionDrift(
+            f"Tool interfaces for {label} changed (hash {actual_hash}, pinned "
+            f"{config.tool_hash}). A tool's name, description or arguments were "
+            "edited in place; give the subagent a new name and register a new "
+            "version instead of changing this one."
         )
 
 

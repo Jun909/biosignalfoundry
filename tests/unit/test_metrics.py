@@ -4,7 +4,7 @@ from src.evaluation import metrics as m
 from src.evaluation.types import DecisionLabel as D
 
 
-def row(decision, ret, xbi=0.0, conf=0.8, ibb=0.0, ticker="T", version="v1.0", h=30):
+def row(decision, ret, xbi=0.0, conf=0.8, ibb=0.0, ticker="T", version="v1.0.0", h=30):
     return m.ReturnRow(version, ticker, "b", decision, conf, h, ret, xbi, ibb)
 
 
