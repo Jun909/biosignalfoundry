@@ -83,7 +83,6 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
   stays as metadata (`git_sha`, `prompt_hash`)
 * Test run evaluation for v1.0.0
 * RAG over SEC filings (10-K/10-Q) for grounded, citable reasoning
-* Data quality validation layer
 * ~~Define versioning~~ ✅ Done (policy) — MAJOR/MINOR/PATCH bump rules are in the
   "Versions" section of `AGENTS.md`. Tool manifest ✅ done — each version
   declares its subagents' tool names and pins a hash of their interfaces (name, description,
