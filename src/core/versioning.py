@@ -20,7 +20,11 @@ import subprocess
 from pathlib import Path
 
 from src.prompts.biosignalfoundry_prompt import biosignalfoundry_prompt
-from src.prompts.financial_health_agent_prompt import financial_health_agent_prompt
+from src.prompts.biosignalfoundry_v2_prompt import biosignalfoundry_v2_prompt
+from src.prompts.clinical_pipeline_agent_prompt import \
+    clinical_pipeline_agent_prompt
+from src.prompts.financial_health_agent_prompt import \
+    financial_health_agent_prompt
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -28,6 +32,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS: dict[str, str] = {
     "biosignalfoundry": biosignalfoundry_prompt,
     "financial_health_agent": financial_health_agent_prompt,
+    "biosignalfoundry_v2": biosignalfoundry_v2_prompt,
+    "clinical_pipeline_agent": clinical_pipeline_agent_prompt,
 }
 
 

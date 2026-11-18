@@ -22,6 +22,7 @@ biosignalfoundry/
 │   ├── biosignalfoundry.py       # Main deep agent (orchestrator) using deepagents
 │   │
 │   ├── agents/                   # Agent implementations for decision-making
+│   │   ├── clinical_pipeline_agent.py     # Agent that analyzes the clinical/regulatory pipeline (CompiledSubAgent; no tools yet)
 │   │   └── financial_health_agent.py      # Agent that analyzes financial health (CompiledSubAgent)
 │   │
 │   ├── agent_tools/              # Tools and utilities for agents to use
@@ -59,7 +60,9 @@ biosignalfoundry/
 │   │   └── logging_middleware.py # LoggingMiddleware: logs agent input/output and tool timing
 │   │
 │   ├── prompts/                  # Prompt templates for LLMs
-│   │   ├── biosignalfoundry_prompt.py               # Main system prompt
+│   │   ├── biosignalfoundry_prompt.py               # Main system prompt (v1.0.0)
+│   │   ├── biosignalfoundry_v2_prompt.py            # Main system prompt (v2.0.0, mentions clinical pipeline agent)
+│   │   ├── clinical_pipeline_agent_prompt.py        # Clinical pipeline agent prompt
 │   │   └── financial_health_agent_prompt.py         # Financial health agent prompt
 │   │
 │   └── evaluation/                # Signal evaluation framework for paper trading
@@ -122,6 +125,7 @@ Defines `BioSignalFoundryOutput` and `build_agent(label, model=None)`, which bui
 ### **src/agents/**
 Contains agent implementations that orchestrate decision-making pipelines. Each agent uses tools from `agent_tools/` to gather and analyze data. Agents are wrapped as `CompiledSubAgent` instances so they can be composed into the top-level deep agent.
 - `financial_health_agent.py`: Agent for analyzing biotech company financial health. Exposes `build_financial_health_subagent(llm, system_prompt)`, which returns a `CompiledSubAgent`.
+- `clinical_pipeline_agent.py`: Agent for the clinical and regulatory pipeline (stage, catalysts, FDA history). Exposes `build_clinical_pipeline_subagent(llm, system_prompt)` and `CLINICAL_PIPELINE_TOOLS`, which is currently empty: tools are added later, after each one's response is verified, as a new version. Enabled from `v2.0.0` (`v1.0.0` + this subagent).
 
 ### **src/agent_tools/**
 Provides specialized functions (tools) that agents can invoke. The tools further filter and extract data from src/data_providers. Each tool file corresponds to a decision pipeline:
@@ -171,12 +175,14 @@ Shared infrastructure used by `app.py`, the agents and the scripts. Nothing here
 
 ### **src/middleware/**
 LangChain `AgentMiddleware` implementations applied at agent construction time:
-- **logging_middleware.py**: `LoggingMiddleware` — logs the agent's input message, every model decision (tool calls or final answer), each tool execution with elapsed time, and the final agent response. Applied to both `biosignalfoundry` and `financial_health_agent`.
+- **logging_middleware.py**: `LoggingMiddleware` — logs the agent's input message, every model decision (tool calls or final answer), each tool execution with elapsed time, and the final agent response. Applied to `biosignalfoundry` and each subagent (`financial_health_agent`, `clinical_pipeline_agent`).
 
 ### **src/prompts/**
 LLM prompt templates:
 - **biosignalfoundry_prompt.py**: Master system prompt defining BioSignalFoundry's decision-making framework
 - **financial_health_agent_prompt.py**: Specialized prompt for the financial health agent
+- **biosignalfoundry_v2_prompt.py**: Supervisor prompt for `v2.0.0`, a copy of the v1.0.0 prompt that also delegates to the clinical pipeline agent
+- **clinical_pipeline_agent_prompt.py**: Specialized prompt for the clinical pipeline agent
 
 ### **src/evaluation/**
 Signal evaluation framework for validating paper trading signals against price data. Evaluates how well `BUY / SELL / HOLD / AVOID` signals predicted actual forward returns:
@@ -229,7 +235,7 @@ Steps 2–5 are cheap, deterministic guards in `src/core/` that run before any L
 4. **Result cache**: looks up `biosignalfoundry:analyze:<DEFAULT_VERSION>:<TICKER>` in Redis (keyed on the resolved ticker, so "Moderna" and "MRNA" share an entry, and on the version, so changing `DEFAULT_VERSION` never serves the previous version's answer). A hit is streamed back immediately.
 5. **Daily budget** (`rate_limiter.check_and_consume_daily_budget`): only cache misses consume it. Over the cap returns 503. Redis errors fail open.
 6. The request is forwarded to **`biosignalfoundry`** (`src/biosignalfoundry.py`) — a `deepagents` deep agent that acts as the supervisor — with a `StreamingProgressCallback` attached so tool starts reach the client as `progress` events
-7. The supervisor delegates to the **financial health subagent** (`src/agents/financial_health_agent.py`) via the `CompiledSubAgent` interface
+7. The supervisor delegates to the **financial health subagent** (`src/agents/financial_health_agent.py`) via the `CompiledSubAgent` interface (from `v2.0.0` the supervisor also delegates to the **clinical pipeline subagent**, `src/agents/clinical_pipeline_agent.py`, which has no tools yet)
 8. The sub-agent calls **Agent Tools** (`src/agent_tools/financial_health_agent_tools.py`) to gather specific data points
 9. Agent Tools call **Data Providers** (`src/data_providers/`) which hit external APIs and cache responses in **Redis**
 10. The sub-agent returns a structured `FinancialHealthAgentOutput` to the supervisor
