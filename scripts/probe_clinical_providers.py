@@ -27,8 +27,12 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
 
-from src.data_providers.openfda import (Dataset,  # noqa: E402
-                                        OpenFDAAPIClient, Query, SearchClause)
+from src.data_providers.openfda import (
+    Dataset,  # noqa: E402
+    OpenFDAAPIClient,
+    Query,
+    SearchClause,
+)
 
 # (ticker, company search name for OpenFDA, why it is in the set)
 COMPANIES = [
@@ -270,32 +274,90 @@ def probe_sec():
     client = SECEdgarClient(identity_email=identity)
     for ticker, _, why in COMPANIES:
         t = time.monotonic()
-        resp = client.get_8k_data(ticker, limit=5)
+        resp = client.get_8k_data(ticker, limit=8)
         data = resp.get("data") or []
         notes = [why]
         if resp.get("ok"):
+            mismatched = 0
             for f in data:
-                details = f.get("details") or []
-                lens = [len(d.get("content") or "") for d in details]
+                parsed = [d["item_id"] for d in f.get("details") or []]
+                declared = f["items_reported"]
+                # items with no usable text are fine, but every declared item except
+                # 9.01 should normally have parsed text
+                missing = sorted(set(declared) - set(parsed))
+                mismatched += bool(missing)
+                chars = {d["item_id"]: len(d["content"]) for d in f["details"]}
+                pr = len(f.get("press_release") or "")
                 notes.append(
-                    f"{f['filing_date'][:10]} items={f['items_reported']} "
-                    f"content_chars={lens}"
+                    f"{f['filing_date'][:10]} declared={declared} "
+                    f"chars={chars} press_release={pr} missing_text={missing}"
                 )
-            empty = [f for f in data if not f.get("details")]
-            notes.append(f"filings with NO parsed items: {len(empty)}/{len(data)}")
-            big = max(
-                (len(d.get("content") or "") for f in data for d in f["details"]),
-                default=0,
+            notes.append(
+                f"filings where a declared item had no parsed text: {mismatched}/{len(data)}"
             )
-            notes.append(f"largest single item: {big} chars (token cost!)")
         record(f"sec 8-K {ticker}", resp, t, notes, count=len(data))
+
+
+NAME_SET = [
+    "MRNA", "VRTX", "REGN", "GILD", "AMGN", "BIIB", "SRPT", "INCY",
+    "EXEL", "ACAD", "CORT", "ARWR", "NVAX", "ALDX",
+]  # fmt: skip
+
+
+def search_name(profile_name: str) -> str:
+    """First word of the company name, upper-cased, for a sponsor_name wildcard."""
+    first = profile_name.split()[0] if profile_name else ""
+    return "".join(ch for ch in first.upper() if ch.isalnum())
+
+
+def probe_names(client: OpenFDAAPIClient):
+    """How reliably does 'first word of the Finnhub name + *' find the right sponsor?"""
+    from config import FINNHUB_API_KEY
+    from src.data_providers.finnhub import FinnHubAPIClient
+
+    finn = FinnHubAPIClient(api_key=FINNHUB_API_KEY or "")
+    for ticker in NAME_SET:
+        t = time.monotonic()
+        prof = (finn.company_profile2(ticker).get("data") or {}).get("name") or ""
+        name = search_name(prof)
+        resp = client.query(
+            Dataset.DRUG_FDA,
+            Query(search=[SearchClause("sponsor_name", f"{name}*")], limit=100),
+        )
+        res = openfda_results(resp)
+        sponsors = sorted({r.get("sponsor_name") for r in res})
+        brands = sorted(
+            {
+                p.get("brand_name")
+                for r in res
+                for p in r.get("products") or []
+                if p.get("marketing_status") != "Discontinued"
+            }
+        )
+        crl = openfda_results(
+            client.query(
+                Dataset.TRANSPARENCY,
+                Query(search=[SearchClause("company_name", name)], limit=100),
+            )
+        )
+        record(
+            f"names {ticker} -> {prof!r} -> {name}*",
+            resp,
+            t,
+            [
+                f"drugsfda apps={len(res)} sponsors={sponsors}",
+                f"active brands (sample)={brands[:6]}",
+                f"crl letters={len(crl)} companies={sorted({c.get('company_name') for c in crl})}",
+            ],
+            count=len(res),
+        )
 
 
 def main():
     global OUT_DIR
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", help="directory for raw JSON responses")
-    parser.add_argument("--only", help="comma list of: openfda,finnhub,sec")
+    parser.add_argument("--only", help="comma list of: openfda,finnhub,sec,names")
     args = parser.parse_args()
     if args.out:
         OUT_DIR = Path(args.out)
@@ -308,6 +370,8 @@ def main():
         probe_finnhub()
     if "sec" in only:
         probe_sec()
+    if "names" in only:
+        probe_names(OpenFDAAPIClient(api_key=os.environ.get("OPENFDA_API_KEY", "")))
 
     failed = [r for r in RESULTS if not r["ok"]]
     print(f"\n{len(RESULTS)} calls, {len(failed)} returned ok=False")

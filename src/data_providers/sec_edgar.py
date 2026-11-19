@@ -46,19 +46,34 @@ PART_II_1A_START = re.compile(
 NEXT_ITEM_Q_RE = re.compile(r"ITEM\s+\d+[A-Z]?[\.\s\-:]+|PART\s+II", re.IGNORECASE)
 
 # regex for 8-K
-ITEM_8K_RE = re.compile(
-    r"Item\s+(?P<item_id>\d\.\d{2})[\.\s\-:]+(?P<title>.*?)(?=Item\s+\d\.\d{2}|SIGNATURES|EXHIBIT\s+INDEX|$)",
-    re.IGNORECASE | re.DOTALL,
+# An item heading sits at the start of a line ("Item 8.01. Other Events."). Anchoring to
+# the line start skips in-text cross references ("...in Item 1.01 of this Report").
+ITEM_8K_HEADING_RE = re.compile(
+    r"^[ \t]*Item[ \t]+(?P<item_id>\d\.\d{2})\.?[ \t]*(?P<title>[^\n]*)$",
+    re.IGNORECASE | re.MULTILINE,
 )
+SIGNATURE_RE = re.compile(r"^[ \t]*SIGNATURES?[ \t]*$", re.IGNORECASE | re.MULTILINE)
 
 ITEM_MAP = {
     "1.01": "Material Definitive Agreement",
+    "1.02": "Termination of Material Agreement",
     "2.01": "Acquisition/Disposition of Assets",
     "2.02": "Earnings Release (Results of Operations)",
+    "2.03": "Creation of Direct Financial Obligation",
+    "2.05": "Restructuring Costs",
+    "2.06": "Material Impairments",
+    "3.01": "Delisting or Listing Standard Notice",
+    "3.02": "Unregistered Sales of Equity Securities",
+    "4.01": "Change of Auditor",
     "5.02": "Director/Officer Changes",
+    "5.07": "Shareholder Vote Results",
+    "7.01": "Regulation FD Disclosure",
     "8.01": "Other Events",
     "9.01": "Financial Statements and Exhibits",
 }
+
+# Items whose substance usually lives in an attached press release (EX-99.x).
+PRESS_RELEASE_ITEMS = {"2.02", "7.01", "8.01"}
 
 
 class SECEdgarClient(BaseClient):
@@ -99,13 +114,10 @@ class SECEdgarClient(BaseClient):
             return 0
 
     def _fetch_exhibit_text(self, filing):
-        """Finds Exhibit 99.1 and returns its text content."""
+        """Returns the text of the first press-release exhibit (EX-99.x), if any."""
         try:
             for doc in filing.attachments:
-                if (
-                    "ex99" in doc.name.lower()
-                    or "exhibit 99" in doc.description.lower()
-                ):
+                if str(getattr(doc, "document_type", "")).upper().startswith("EX-99"):
                     return doc.text()[:20000]
         except Exception:
             return None
@@ -233,33 +245,32 @@ class SECEdgarClient(BaseClient):
 
     def _extract_8k_data(self, raw_text: str):
         text = raw_text.replace("\r", "")
-        matches = list(ITEM_8K_RE.finditer(text))
+        matches = list(ITEM_8K_HEADING_RE.finditer(text))
+        signature = SIGNATURE_RE.search(text, matches[-1].end()) if matches else None
+        text_end = signature.start() if signature else len(text)
 
         extracted_items = []
         seen_ids = set()
 
         for i, match in enumerate(matches):
             item_id = match.group("item_id")
+            end_idx = matches[i + 1].start() if i + 1 < len(matches) else text_end
+            raw_content = text[match.end() : end_idx].strip()
 
-            start_idx = match.end()  # Start after the Title
-            end_idx = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-
-            raw_content = text[start_idx:end_idx].strip()
-
-            if "...." in raw_content[:50] or len(raw_content) < 20:
+            if len(raw_content) < 20 or item_id in seen_ids:
                 continue
 
             extracted_items.append(
                 {
                     "item_id": item_id,
                     "display_name": ITEM_MAP.get(item_id, "Other Material Event"),
-                    "title": match.group("title").strip().split("\n")[0],
+                    "title": match.group("title").strip().rstrip("."),
                     "content": re.sub(r"\s+", " ", raw_content),
                 }
             )
             seen_ids.add(item_id)
 
-        return extracted_items, sorted(list(seen_ids))
+        return extracted_items, sorted(seen_ids)
 
     def get_form4_data(
         self, ticker: str, limit: int = 10
@@ -481,27 +492,28 @@ class SECEdgarClient(BaseClient):
 
             results = []
             for filing in filings:
-                # 1. Get the text directly from the filing object
-                raw_text = filing.text()
+                # 1. Parse the item sections out of the filing text
+                items, parsed_ids = self._extract_8k_data(filing.text())
 
-                # 2. Extract specific Items (1.01, 2.02, etc)
-                items, item_ids = self._extract_8k_data(raw_text)
+                # 2. The filing's own item list is authoritative; the parsed ids are
+                # the fallback (and show which items had usable text).
+                declared = [
+                    i.strip() for i in (filing.items or "").split(",") if i.strip()
+                ]
+                item_ids = sorted(declared) or parsed_ids
 
-                if "2.02" in item_ids or "8.01" in item_ids:
-                    exhibit_content = self._fetch_exhibit_text(filing)
-                    if exhibit_content:
-                        for item in items:
-                            if item["item_id"] in ["2.02", "8.01"]:
-                                # We replace the boring legal text with the actual announcement
-                                item["content"] = (
-                                    f"[FULL PRESS RELEASE]: {re.sub(r'\s+', ' ', exhibit_content)}"
-                                )
+                # 3. The announcement itself is usually an attached press release
+                press_release = None
+                if PRESS_RELEASE_ITEMS & set(item_ids):
+                    exhibit = self._fetch_exhibit_text(filing)
+                    if exhibit:
+                        press_release = re.sub(r"\s+", " ", exhibit)
 
                 filing_date = datetime.combine(
                     filing.filing_date, datetime.min.time(), tzinfo=timezone.utc
                 )
 
-                # 3. Construct the direct SEC URL
+                # 4. Construct the direct SEC URL
                 # Note: primary_document is the correct attribute; cik must be 10 digits
                 cik_padded = str(company.cik).zfill(10)
                 acc_no_clean = filing.accession_number.replace("-", "")
@@ -513,6 +525,7 @@ class SECEdgarClient(BaseClient):
                         "accession_number": filing.accession_number,
                         "items_reported": item_ids,
                         "details": items,
+                        "press_release": press_release,
                         "is_amended": filing.form.endswith("/A"),
                         "url": url,
                     }
