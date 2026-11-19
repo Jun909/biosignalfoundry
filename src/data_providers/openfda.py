@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
+from urllib.parse import quote, urlencode
 
 import requests
 
@@ -116,34 +117,51 @@ class OpenFDAAPIClient:
         }
         return payload
 
-    def _error(self, e: Exception) -> dict:
+    def _error(self, e: Exception | str) -> dict:
         return {
             "provider": self.provider,
             "fetched_at": datetime.now(timezone.utc).isoformat(),
             "data": [],
             "ok": False,
-            "error": str(e),
+            "error": self._redact(str(e)),
         }
 
+    def _redact(self, text: str) -> str:
+        """requests puts the full URL, including api_key, in its error messages."""
+        if self.api_key:
+            text = text.replace(self.api_key, "***")
+        return text
+
     def query(self, dataset: Dataset, query: Query) -> dict:
+        """Run a query. ``ok`` is False only for real failures: a query that matches
+        nothing (HTTP 404 "No matches found!") returns ``ok=True`` with empty results.
+        """
         endpoint = f"{self.BASE_URL}/{dataset.value}.json"
-        params, date_filter = query.compile()
+        params, _ = query.compile()
 
         if self.api_key:
             params["api_key"] = self.api_key
 
-        # when term has a date range, eg "[20180101+TO+20200723]"
-        if date_filter:
-            search_val = params.pop("search", None)
-            if not isinstance(search_val, str):
-                raise ValueError("date_filter=True but no valid search clause provided")
-            url = f"{endpoint}?search={search_val}"
-        else:
-            url = endpoint
+        # Build the query string by hand: terms use "+" for spaces and as the AND
+        # separator, and ":*[]\"" are meaningful to OpenFDA. requests would encode
+        # "+" as %2B and the API would answer 500.
+        url = f"{endpoint}?{urlencode(params, quote_via=quote, safe=':+*[]\"')}"
 
         try:
-            response = requests.get(url, params=params, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout)
+        except requests.RequestException as e:
+            return self._error(e)
+
+        if response.status_code == 404:
+            return self._wrap_response(data={"meta": {}, "results": []})
+
+        try:
             response.raise_for_status()
             return self._wrap_response(data=response.json())
         except Exception as e:
-            return self._error(e)
+            detail = ""
+            try:
+                detail = response.json().get("error", {}).get("message", "")
+            except ValueError:
+                pass
+            return self._error(f"{e} {detail}".strip())
