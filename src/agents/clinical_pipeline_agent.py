@@ -2,6 +2,8 @@ from deepagents import CompiledSubAgent
 from langchain.agents import create_agent
 from pydantic import BaseModel, Field
 
+from src.agent_tools.clinical_pipeline_agent_tools import (
+    get_fda_approvals, get_fda_complete_response_letters, get_recent_8k_events)
 from src.middleware import LoggingMiddleware
 
 
@@ -26,9 +28,11 @@ class ClinicalPipelineAgentOutput(BaseModel):
 
 # Single source of truth for this subagent's tools: the builder uses it and the version
 # registry fingerprints it (see SUBAGENT_TOOLS in src/biosignalfoundry.py).
-# Intentionally empty for now: tools are added one at a time after their responses
-# are verified. Adding tools later is a new version (see AGENTS.md).
-CLINICAL_PIPELINE_TOOLS: list = []
+CLINICAL_PIPELINE_TOOLS = [
+    get_fda_approvals,
+    get_fda_complete_response_letters,
+    get_recent_8k_events,
+]
 
 
 def build_clinical_pipeline_subagent(llm, system_prompt: str) -> CompiledSubAgent:
