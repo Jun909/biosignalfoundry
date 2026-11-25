@@ -58,3 +58,32 @@ def test_signature_block_is_not_part_of_the_last_item():
 
 def test_text_without_items_returns_nothing():
     assert _client()._extract_8k_data("Just a cover page, no items.") == ([], [])
+
+
+def test_headings_with_thin_space_after_item_are_parsed():
+    # Real filings use U+2009 / U+00A0 between "Item" and the number.
+    text = (
+        "cover\n\nItem 8.01 Other Events.\n\nThe company announced a thing today "
+        "that matters.\n\nItem 9.01 Financial Statements and Exhibits.\n\n"
+        "(d) Exhibits and more exhibit text\n\nSIGNATURES\n\nsigned"
+    )
+    items, ids = _client()._extract_8k_data(text)
+
+    assert ids == ["8.01", "9.01"]
+    assert "announced a thing" in items[0]["content"]
+
+
+def test_stacked_headings_share_the_following_body():
+    # Item 2.02 and 7.01 listed back to back with one body (Corcept-style).
+    text = (
+        "Item 2.02. Results of Operations and Financial Condition.\n\n"
+        "Item 7.01 Regulation FD Disclosure.\n\n"
+        "On November 3 the company issued a press release announcing results.\n\n"
+        "Item 9.01 Financial Statements and Exhibits.\n\n(d) Exhibits and more text\n"
+    )
+    items, ids = _client()._extract_8k_data(text)
+
+    assert ids == ["2.02", "7.01", "9.01"]
+    by_id = {i["item_id"]: i["content"] for i in items}
+    assert by_id["2.02"] == by_id["7.01"]
+    assert "press release announcing results" in by_id["2.02"]

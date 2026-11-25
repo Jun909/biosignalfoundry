@@ -5,7 +5,10 @@ from datetime import datetime, timezone
 import pandas as pd
 from edgar import Company, set_identity
 
+from config import REDIS_CACHE_TTL_SECONDS_SEC_EDGAR
+
 from .base import BaseClient
+from .cache import cached_call
 
 # regex for s-3
 SHELF_AMOUNT_RE = re.compile(
@@ -49,10 +52,13 @@ NEXT_ITEM_Q_RE = re.compile(r"ITEM\s+\d+[A-Z]?[\.\s\-:]+|PART\s+II", re.IGNORECA
 # An item heading sits at the start of a line ("Item 8.01. Other Events."). Anchoring to
 # the line start skips in-text cross references ("...in Item 1.01 of this Report").
 ITEM_8K_HEADING_RE = re.compile(
-    r"^[ \t]*Item[ \t]+(?P<item_id>\d\.\d{2})\.?[ \t]*(?P<title>[^\n]*)$",
+    # [^\S\n] = any whitespace but a newline: filers use thin/nbsp spaces after "Item"
+    r"^[^\S\n]*Item[^\S\n]+(?P<item_id>\d\.\d{2})\.?[^\S\n]*(?P<title>[^\n]*)$",
     re.IGNORECASE | re.MULTILINE,
 )
-SIGNATURE_RE = re.compile(r"^[ \t]*SIGNATURES?[ \t]*$", re.IGNORECASE | re.MULTILINE)
+SIGNATURE_RE = re.compile(
+    r"^[^\S\n]*SIGNATURES?[^\S\n]*$", re.IGNORECASE | re.MULTILINE
+)
 
 ITEM_MAP = {
     "1.01": "Material Definitive Agreement",
@@ -251,24 +257,33 @@ class SECEdgarClient(BaseClient):
 
         extracted_items = []
         seen_ids = set()
+        # Headings stacked with no text between them ("Item 2.02 ... / Item 7.01 ...")
+        # share the body that follows, so they wait here for it.
+        pending: list = []
 
         for i, match in enumerate(matches):
-            item_id = match.group("item_id")
             end_idx = matches[i + 1].start() if i + 1 < len(matches) else text_end
             raw_content = text[match.end() : end_idx].strip()
+            pending.append(match)
 
-            if len(raw_content) < 20 or item_id in seen_ids:
+            if len(raw_content) < 20:
                 continue
 
-            extracted_items.append(
-                {
-                    "item_id": item_id,
-                    "display_name": ITEM_MAP.get(item_id, "Other Material Event"),
-                    "title": match.group("title").strip().rstrip("."),
-                    "content": re.sub(r"\s+", " ", raw_content),
-                }
-            )
-            seen_ids.add(item_id)
+            content = re.sub(r"\s+", " ", raw_content)
+            for head in pending:
+                item_id = head.group("item_id")
+                if item_id in seen_ids:
+                    continue
+                seen_ids.add(item_id)
+                extracted_items.append(
+                    {
+                        "item_id": item_id,
+                        "display_name": ITEM_MAP.get(item_id, "Other Material Event"),
+                        "title": head.group("title").strip().rstrip("."),
+                        "content": content,
+                    }
+                )
+            pending = []
 
         return extracted_items, sorted(seen_ids)
 
@@ -293,15 +308,9 @@ class SECEdgarClient(BaseClient):
             )
 
         except Exception as e:
-            return {
-                "provider": self.provider,
-                "endpoint": "form4_transactions",
-                "ticker": ticker,
-                "fetched_at": self._serialize(None),
-                "data": [],
-                "ok": False,
-                "error": str(e),
-            }
+            return self._make_error(
+                self.provider, "form4_transactions", e, extra={"ticker": ticker}
+            )
 
     def get_s3_data(self, ticker: str, limit: int = 10):
         try:
@@ -348,14 +357,7 @@ class SECEdgarClient(BaseClient):
             )
 
         except Exception as e:
-            return {
-                "provider": self.provider,
-                "endpoint": "s3",
-                "ticker": ticker,
-                "ok": False,
-                "data": None,
-                "error": str(e),
-            }
+            return self._make_error(self.provider, "s3", e, extra={"ticker": ticker})
 
     def get_10k_data(self, ticker: str):
         try:
@@ -413,14 +415,7 @@ class SECEdgarClient(BaseClient):
             )
 
         except Exception as e:
-            return {
-                "provider": self.provider,
-                "endpoint": "10k",
-                "ticker": ticker,
-                "ok": False,
-                "data": None,
-                "error": str(e),
-            }
+            return self._make_error(self.provider, "10k", e, extra={"ticker": ticker})
 
     def get_10q_data(self, ticker: str):
         try:
@@ -468,16 +463,16 @@ class SECEdgarClient(BaseClient):
             )
 
         except Exception as e:
-            return {
-                "provider": self.provider,
-                "endpoint": "10q",
-                "ticker": ticker,
-                "ok": False,
-                "data": None,
-                "error": str(e),
-            }
+            return self._make_error(self.provider, "10q", e, extra={"ticker": ticker})
 
     def get_8k_data(self, ticker: str, limit: int = 5):
+        return cached_call(
+            f"sec_edgar:8k:{ticker.upper()}:{limit}",
+            REDIS_CACHE_TTL_SECONDS_SEC_EDGAR,
+            lambda: self._fetch_8k_data(ticker, limit),
+        )
+
+    def _fetch_8k_data(self, ticker: str, limit: int):
         try:
             company = Company(ticker)
             filings = company.get_filings(form="8-K").head(limit)
@@ -539,13 +534,7 @@ class SECEdgarClient(BaseClient):
             )
 
         except Exception as e:
-            return {
-                "ok": False,
-                "error": str(e),
-                "ticker": ticker,
-                "provider": self.provider,
-                "endpoint": "8k",
-            }
+            return self._make_error(self.provider, "8k", e, extra={"ticker": ticker})
 
     def get_13f_data(self, manager_name_or_cik: str):
         try:
@@ -594,12 +583,9 @@ class SECEdgarClient(BaseClient):
             )
 
         except Exception as e:
-            # return {"ok": False, "error": str(e), "query": manager_name_or_cik}
-            return {
-                "provider": self.provider,
-                "endpoint": "13f",
-                "manager name or cik": manager_name_or_cik,
-                "ok": False,
-                "data": None,
-                "error": str(e),
-            }
+            return self._make_error(
+                self.provider,
+                "13f",
+                e,
+                extra={"manager_name_or_cik": manager_name_or_cik},
+            )

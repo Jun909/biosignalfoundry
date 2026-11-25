@@ -35,6 +35,7 @@ biosignalfoundry/
 │   ├── data_providers/           # API wrappers for external data sources
 │   │   ├── __init__.py
 │   │   ├── base.py               # Base class for all data providers
+│   │   ├── cache.py              # Shared Redis response cache (OpenFDA, SEC)
 │   │   ├── alphavantage.py       # Stock price and technical analysis data
 │   │   ├── finnhub.py            # Financial market data and company info
 │   │   ├── fred.py               # Federal Reserve economic data
@@ -140,8 +141,9 @@ Wrapper modules for external APIs. Each provider normalizes API responses into c
 - **alphavantage.py**: Stock prices, moving averages, technical indicators
 - **finnhub.py**: Company fundamentals, earnings, market cap
 - **fred.py**: Federal Reserve economic data (inflation, interest rates, etc.)
-- **sec_edgar.py**: SEC filings (10-K, 10-Q, 8-K)
-- **openfda.py**: FDA drug approvals, clinical trial data
+- **cache.py**: `cached_call(key, ttl, fetch)`, the Redis cache used by `openfda.py` and `sec_edgar.py`. Only `ok` responses are cached and Redis errors count as a miss. TTLs: `REDIS_CACHE_TTL_SECONDS_OPENFDA` (1 day) and `REDIS_CACHE_TTL_SECONDS_SEC_EDGAR` (6 hours). Cached entries are not invalidated when parsing code changes, so clear the `sec_edgar:*` / `openfda:*` keys after changing how a response is built.
+- **sec_edgar.py**: SEC filings (10-K, 10-Q, 8-K) via `edgartools`; requires `SEC_EDGAR_IDENTITY`. `get_8k_data` is the validated path: items come from the filing's own item list, section text is parsed from the heading layout (including thin-space headings and stacked headings that share a body), and press releases are returned from the `EX-99.x` exhibit in `press_release`. Only US filers have 8-Ks; foreign filers (20-F/6-K) return no filings. Failures use the standard `_make_error` shape.
+- **openfda.py**: FDA data via `query()` (cached; a no-match 404 is `ok=True` with empty results; the API key is redacted from errors) and `query_all()` (pages through every match). Responses carry `total` and `truncated`. `company_search_keys()` and `matches_company()` map a listed company name to OpenFDA sponsor/company names (e.g. "Intra-Cellular" vs `INTRACELLULAR`). `drug/drugsfda` covers NDAs and ANDAs only, not biologics (BLAs). `transparency/crl` includes letters for applications that were later approved, so check `approval_status`.
 - **marketstack.py**: General market data
 - **massive.py**: OHLCV aggregate bars via the `massive` SDK
 

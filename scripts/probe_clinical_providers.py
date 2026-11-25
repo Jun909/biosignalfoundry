@@ -27,12 +27,10 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
 
-from src.data_providers.openfda import (
-    Dataset,  # noqa: E402
-    OpenFDAAPIClient,
-    Query,
-    SearchClause,
-)
+from src.data_providers.openfda import Dataset  # noqa: E402
+from src.data_providers.openfda import (OpenFDAAPIClient, Query,  # noqa: E402
+                                        SearchClause, company_search_keys,
+                                        matches_company)
 
 # (ticker, company search name for OpenFDA, why it is in the set)
 COMPANIES = [
@@ -353,11 +351,187 @@ def probe_names(client: OpenFDAAPIClient):
         )
 
 
+SAMPLE = [
+    "MRNA", "VRTX", "REGN", "GILD", "AMGN", "BIIB", "SRPT", "INCY", "EXEL", "ACAD",
+    "CORT", "ARWR", "NVAX", "ALDX", "CRVS", "ITCI", "BBIO", "ETNB", "IONS", "APLS",
+    "MDGL", "INSM", "RARE", "ALNY", "NBIX", "BMRN", "ASND", "ARGX",
+]  # fmt: skip
+
+
+def _tokens(name: str) -> list[str]:
+    import re
+
+    return [t for t in re.split(r"[^A-Za-z0-9]+", name.upper()) if t]
+
+
+def probe_sample(client: OpenFDAAPIClient):
+    """Pass/fail validation across a wider set of biotechs. Prints a table."""
+    from config import FINNHUB_API_KEY
+    from src.data_providers.finnhub import FinnHubAPIClient
+
+    finn = FinnHubAPIClient(api_key=FINNHUB_API_KEY or "")
+    identity = os.environ.get("SEC_EDGAR_IDENTITY")
+    sec = None
+    if identity:
+        from src.data_providers.sec_edgar import SECEdgarClient
+
+        sec = SECEdgarClient(identity_email=identity)
+
+    rows = []
+    for ticker in SAMPLE:
+        row = {"ticker": ticker, "issues": []}
+        prof = (finn.company_profile2(ticker).get("data") or {}).get("name") or ""
+        row["name"] = prof
+        if not prof:
+            row["issues"].append("EMPTY finnhub name")
+            rows.append(row)
+            continue
+        keys = company_search_keys(prof)
+        sponsors, apps = set(), 0
+        for key in keys:
+            r = client.query_all(
+                Dataset.DRUG_FDA,
+                Query(search=[SearchClause("sponsor_name", f"{key}*")]),
+            )
+            hits = [
+                x
+                for x in openfda_results(r)
+                if matches_company(prof, x.get("sponsor_name"))
+            ]
+            dropped = {
+                x.get("sponsor_name")
+                for x in openfda_results(r)
+                if not matches_company(prof, x.get("sponsor_name"))
+            }
+            if dropped:
+                row.setdefault("filtered", []).append((key, sorted(dropped)))
+            if r.get("truncated"):
+                row["issues"].append(f"drugsfda truncated (key {key})")
+            if hits:
+                sponsors = {x.get("sponsor_name") for x in hits}
+                apps = len(hits)
+                break
+        row["fda"] = (keys, apps, sorted(sponsors))
+        cres, crl_key = [], None
+        for key in keys:
+            crl = client.query_all(
+                Dataset.TRANSPARENCY,
+                Query(
+                    search=[SearchClause("company_name", key)], sort="letter_date:desc"
+                ),
+            )
+            cres = [
+                c
+                for c in openfda_results(crl)
+                if matches_company(prof, c.get("company_name"))
+            ]
+            if cres:
+                crl_key = key
+                break
+        row["crl"] = (crl_key, len(cres))
+        row["crl_status"] = sorted({c.get("approval_status") for c in cres})
+        dates = [c.get("letter_date") for c in cres]
+        try:
+            from datetime import datetime as dt
+
+            parsed = [dt.strptime(d, "%m/%d/%Y") for d in dates]
+            if parsed != sorted(parsed, reverse=True):
+                row["issues"].append("CRL not sorted by date desc")
+        except Exception as e:
+            row["issues"].append(f"CRL date parse: {e}")
+        if sec:
+            t = time.monotonic()
+            r8 = sec.get_8k_data(ticker, limit=25)
+            row["8k_seconds"] = round(time.monotonic() - t, 1)
+            if not r8.get("ok"):
+                row["issues"].append(f"8-K error: {r8.get('error')}")
+            else:
+                filings = r8["data"]
+                row["8k"] = len(filings)
+                bad = []
+                for f in filings:
+                    parsed_ids = {d["item_id"] for d in f["details"]}
+                    missing = set(f["items_reported"]) - parsed_ids - {"9.01"}
+                    if not f["items_reported"] or missing:
+                        bad.append(
+                            (
+                                f["filing_date"][:10],
+                                f["items_reported"],
+                                sorted(missing),
+                            )
+                        )
+                    # Only earnings (2.02) reliably come with an EX-99 press release;
+                    # 7.01/8.01 are often in the body text itself.
+                    if "2.02" in f["items_reported"] and not f.get("press_release"):
+                        row.setdefault("no_press_release", []).append(
+                            f["filing_date"][:10]
+                        )
+                row["8k_bad"] = bad
+                if not filings:
+                    row["issues"].append("no 8-K filings (foreign filer?)")
+                if bad:
+                    row["issues"].append(f"{len(bad)} 8-Ks with unparsed items")
+        rows.append(row)
+
+    print("\n===== SAMPLE VALIDATION =====")
+    for r in rows:
+        print(f"\n{r['ticker']:<5} {r['name']!r}")
+        for k in ("fda_joined", "fda_token", "crl", "crl_status", "8k", "8k_seconds"):
+            if k in r:
+                print(f"   {k}: {r[k]}")
+        if (
+            r.get("sponsors_joined") != r.get("sponsors_token")
+            and "sponsors_token" in r
+        ):
+            print(
+                f"   sponsors joined={r.get('sponsors_joined')}\n            token ={r.get('sponsors_token')}"
+            )
+        elif r.get("sponsors_joined"):
+            print(f"   sponsors: {r['sponsors_joined']}")
+        if r.get("no_press_release"):
+            print(f"   8-Ks with 2.02 but NO press release: {r['no_press_release']}")
+        for b in r.get("8k_bad", [])[:3]:
+            print(f"   8-K unparsed: {b}")
+        for i in r["issues"]:
+            print(f"   ISSUE: {i}")
+    n_issue = sum(bool(r["issues"]) for r in rows)
+    print(f"\n{len(rows)} companies, {n_issue} with at least one issue")
+    (OUT_DIR).mkdir(parents=True, exist_ok=True)
+    (OUT_DIR / "_sample.json").write_text(json.dumps(rows, indent=2, default=str))
+
+
+def crl_stats(client: OpenFDAAPIClient):
+    """What does the whole CRL dataset look like? (Is it rejections only?)"""
+    import collections
+
+    r = client.query_all(Dataset.TRANSPARENCY, Query(), max_records=1000)
+    res = openfda_results(r)
+    print(
+        f"\n===== CRL DATASET ===== total={r.get('total')} fetched={len(res)} truncated={r.get('truncated')}"
+    )
+    print(
+        "approval_status:", collections.Counter(x.get("approval_status") for x in res)
+    )
+    print("letter_type:", collections.Counter(x.get("letter_type") for x in res))
+    years = collections.Counter(x.get("letter_year") for x in res)
+    print("letter_year:", sorted(years.items(), key=lambda kv: str(kv[0])))
+    lens = sorted(len(x.get("text") or "") for x in res)
+    print(
+        f"text chars: min={lens[0]} median={lens[len(lens)//2]} max={lens[-1]} empty={sum(l == 0 for l in lens)}"
+    )
+    print(
+        "application_number types:",
+        collections.Counter(type(x.get("application_number")).__name__ for x in res),
+    )
+
+
 def main():
     global OUT_DIR
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", help="directory for raw JSON responses")
-    parser.add_argument("--only", help="comma list of: openfda,finnhub,sec,names")
+    parser.add_argument(
+        "--only", help="comma list of: openfda,finnhub,sec,names,sample,crlstats"
+    )
     args = parser.parse_args()
     if args.out:
         OUT_DIR = Path(args.out)
@@ -370,6 +544,10 @@ def main():
         probe_finnhub()
     if "sec" in only:
         probe_sec()
+    if "sample" in only:
+        probe_sample(OpenFDAAPIClient(api_key=os.environ.get("OPENFDA_API_KEY", "")))
+    if "crlstats" in only:
+        crl_stats(OpenFDAAPIClient(api_key=os.environ.get("OPENFDA_API_KEY", "")))
     if "names" in only:
         probe_names(OpenFDAAPIClient(api_key=os.environ.get("OPENFDA_API_KEY", "")))
 
