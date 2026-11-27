@@ -28,7 +28,8 @@ Phase-by-phase plan for BioSignalFoundry. For what the project is and why, see t
   backtesting" design decision below~~ ✅ Done
 
 ## Phase 2 — Signal Completeness
-* Wire remaining subagents: clinical (OpenFDA), macro (FRED), sentiment (Finnhub)
+* Wire remaining subagents: ~~clinical (OpenFDA)~~ ✅ Done in `v2.0.0` (FDA approvals, CRLs,
+  SEC 8-K events); macro (FRED) and sentiment (Finnhub) still open
 * ~~Explicit version registry: named versions (`v1.0.0`, `v1.0.1`, ...) defined as
   configurations (subagents, tools, prompts, model), replacing the git SHA + prompt hash
   label as the identifier~~ ✅ Done — see `src/core/version_registry.py` (a version is a

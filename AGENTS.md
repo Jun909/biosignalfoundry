@@ -17,6 +17,7 @@ Project philosophy: `README.md`. Roadmap: `docs/ROADMAP.md`.
   `uv run alembic revision --autogenerate -m "..."` and review it before committing
 - Secrets in `.env` (gitignored, never commit): `ALPHAVANTAGE_API_KEY`, `FINNHUB_API_KEY`,
   `FRED_API_KEY`, `MARKETSTACK_API_KEY`, `MASSIVE_API_KEY`, `OPENFDA_API_KEY`,
+  `SEC_EDGAR_IDENTITY` ("Your Name you@example.com", required for SEC calls),
   `OPENAI_API_KEY`/`DEEPSEEK_API_KEY`, `LLM_PROVIDER`, `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`, `REDIS_*`, `ALLOWED_ORIGINS`
 
 ## Run

@@ -98,6 +98,25 @@ VERSIONS: dict[str, VersionConfig] = {
         prompt_hash="aa847f50",
         tool_hash="74f2e54c",
     ),
+    "v2.0.0": VersionConfig(
+        description="v2.0.0: v1.0.0 + clinical_pipeline subagent",
+        supervisor_prompt="biosignalfoundry_v2",
+        subagents={
+            "financial_health": "financial_health_agent",
+            "clinical_pipeline": "clinical_pipeline_agent",
+        },
+        llm=LLMConfig(provider="deepseek", model="deepseek-chat", temperature=0.1),
+        tools={
+            "financial_health": ("get_company_profile", "get_income_statement_annual"),
+            "clinical_pipeline": (
+                "get_fda_approvals",
+                "get_fda_complete_response_letters",
+                "get_recent_8k_events",
+            ),
+        },
+        prompt_hash="228d9937",
+        tool_hash="e2bd07c5",
+    ),
 }
 
 # Version the API serves. Include the label in the /analyze cache key so changing
