@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     alphavantage_api_key: str
     finnhub_api_key: str
     marketstack_api_key: str | None = None
+    openfda_api_key: str | None = None
+    # SEC asks automated clients to declare a contact ("Name email"); edgartools needs it
+    sec_edgar_identity: str | None = None
     # other providers (in the future when we wire them up)
 
     # LLM provider
@@ -70,8 +73,12 @@ REDIS_CACHE_TTL_SECONDS_ALPHAVANTAGE_ERROR = (
     300  # 5 min — lets quota reset before retrying
 )
 REDIS_CACHE_TTL_SECONDS_FINNHUB = 86400
+REDIS_CACHE_TTL_SECONDS_OPENFDA = 86400
+REDIS_CACHE_TTL_SECONDS_SEC_EDGAR = 21600  # 6h: 8-Ks can matter the same day
 REDIS_CACHE_TTL_SECONDS_BIOSIGNALFOUNDRY = 120
 
 ALPHAVANTAGE_API_KEY = settings.alphavantage_api_key
 FINNHUB_API_KEY = settings.finnhub_api_key
 MARKETSTACK_API_KEY = settings.marketstack_api_key
+OPENFDA_API_KEY = settings.openfda_api_key
+SEC_EDGAR_IDENTITY = settings.sec_edgar_identity

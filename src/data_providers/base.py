@@ -99,6 +99,26 @@ class BaseClient:
 
         return payload
 
+    def _make_error(
+        self,
+        provider: str,
+        endpoint: str,
+        error: Exception | str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Standard failure response, the same shape ``_call`` returns on error."""
+        resp: Dict[str, Any] = {
+            "provider": provider,
+            "endpoint": endpoint,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "data": [],
+            "ok": False,
+            "error": str(error),
+        }
+        if extra:
+            resp.update(extra)
+        return resp
+
     def _call(
         self, client: Any, provider: str, endpoint: str, *args, **kwargs
     ) -> Dict[str, Any]:

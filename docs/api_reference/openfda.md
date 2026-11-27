@@ -155,7 +155,7 @@ myoutput = openfda_client.query(dataset=Dataset.TOBACCO_PROBLEM, query=myquery)
 
 Using "search", "date_filter" and "limit" parameters:
 
-Note: when the "term" is a date range (e.g "[20180101+TO+20200723]"), the parameter "date_filter" has to be set to True.
+Note: a date range term (e.g "[20180101+TO+20200723]") is passed as is. The `date_filter` argument is kept for compatibility but no longer needed: the client builds the query string itself, so `+`, `:`, `*`, `[` and `]` are never URL-encoded.
 ```python
 myquery = Query(
     search=[SearchClause(field="date_submitted", term="[20180101+TO+20200723]")],
@@ -248,3 +248,19 @@ JSON output, truncated:
 }
 
 ```
+
+---
+## Behaviour worth knowing
+
+Verified against the live API (see `scripts/probe_clinical_providers.py`).
+
+* **No match is not an error.** openFDA answers HTTP 404 "No matches found!" when a search matches nothing. The client returns `ok: true` with `data.results == []`. `ok: false` is only for real failures; the error text never contains the API key.
+* **Truncation.** `query()` returns at most `limit` records (default 100). Responses include `total` and `truncated` (True when `skip + returned < total`). Use `openfda_client.query_all(dataset, query, max_records=1000)` to page through all matches; it returns one merged response and sets `truncated` if matches remain beyond `max_records`.
+* **Caching.** Successful `query()` results are cached in Redis for a day (`openfda:<dataset>:<hash of the query>`); failures are not cached.
+* **Multi-clause searches** join with `+AND+` and work (`sponsor_name:VERTEX*+AND+submissions.submission_status:AP`).
+* **Sponsor and company names are not tokenized in `drug/drugsfda`.** `sponsor_name:VERTEX` finds nothing, `sponsor_name:VERTEX*` finds `VERTEX PHARMS` and `VERTEX PHARMS INC`. Use a wildcard on the first word of the company name. `company_search_keys("Intra-Cellular Therapies Inc")` returns `["INTRACELLULAR", "INTRA"]`; search with each and keep the hits for which `matches_company(name, sponsor)` is true (it requires a whole-word match, so `INTRABIO` is rejected).
+* **`drug/drugsfda` has no biologics.** Only NDAs and ANDAs. Moderna and Novavax (BLA/vaccine products) return nothing, so "no results" does not mean "no approvals".
+* **`drug/drugsfda` is large.** About 10KB per application, mostly `SUPPL` (supplement) submissions. Trim before handing it to an LLM.
+* **`transparency/crl` (complete response letters)** holds 466 letters, 2002-2025 (mostly recent). 312 have `approval_status: Approved` (the application was approved later), 154 `Unapproved`. `letter_type` includes `COMPLETE RESPONSE` (453), `TENTATIVE APPROVAL`, `REFUSAL TO FILE` and a few others. `text` is OCR output with redaction artifacts (median about 8.7K characters). `letter_date` is `MM/DD/YYYY`; `application_number` is a list. The `company_name` field is free text from the letter.
+* **`drug/enforcement` (recalls)** is mostly manufacturing issues (Pfizer: 158 records, e.g. subpotent drug), rarely relevant to a small biotech.
+* **`drug/event`** is keyed by drug name, not company, and biologics and vaccines often have no records.

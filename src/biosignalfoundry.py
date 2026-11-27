@@ -5,6 +5,8 @@ from langchain.agents.structured_output import AutoStrategy
 from pydantic import BaseModel, Field
 
 from llm_provider import llm, make_llm
+from src.agents.clinical_pipeline_agent import (
+    CLINICAL_PIPELINE_TOOLS, build_clinical_pipeline_subagent)
 from src.agents.financial_health_agent import (FINANCIAL_HEALTH_TOOLS,
                                                build_financial_health_subagent)
 from src.core.subagent_capture import capture_structured_output
@@ -28,12 +30,14 @@ class BioSignalFoundryOutput(BaseModel):
 # The only list of subagents: register a new one here.
 SUBAGENT_BUILDERS: dict[str, Callable[..., CompiledSubAgent]] = {
     "financial_health": build_financial_health_subagent,
+    "clinical_pipeline": build_clinical_pipeline_subagent,
 }
 
 # Subagent name -> the tools it exposes to the LLM (the same objects its builder uses).
 # Register a new subagent's tools here too; ``verify_tools`` pins them per version.
 SUBAGENT_TOOLS: dict[str, list] = {
     "financial_health": FINANCIAL_HEALTH_TOOLS,
+    "clinical_pipeline": CLINICAL_PIPELINE_TOOLS,
 }
 
 
