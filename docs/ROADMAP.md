@@ -133,3 +133,19 @@ kept separate from the roadmap above on purpose.
   existing first)
 * **Discovery / news feed** — surfacing new biotech companies and sector news,
   not just answering direct queries
+* **Loop engineering (self-improving system)** — an analysis agent reads the code,
+  paper-trading metrics and past decisions and proposes one change at a time; a
+  coding agent implements it as a new version and opens a PR; a human reviews and
+  approves it on GitHub; the new version then runs in parallel batches against the
+  current best, and the results feed the next iteration. Build in stages, adding
+  autonomy only once earlier proposals have tended to improve results: analysis
+  reports, then hypotheses filed as issues, then PRs from approved issues, then
+  more automation. Guardrails:
+  - performance changes need evidence from several matured batches, and a limited
+    number of versions are under test at once
+  - a winning version is confirmed on new batches before it becomes
+    `DEFAULT_VERSION`
+  - the agents cannot change evaluation code, tests, the watchlist or the version
+    drift checks, and registered versions are never edited in place
+  - every PR states its evidence, sample size, expected effect and what would
+    prove it wrong
